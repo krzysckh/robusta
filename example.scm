@@ -1,5 +1,6 @@
 (import (prefix (robusta server) robusta/))
 (import (prefix (robusta dispatcher) robusta/))
+(import (only (robusta server) ->string))
 
 (define (index request)
   '((code . 200)
@@ -7,9 +8,11 @@
     (content . "this is the index page")))
 
 (define (about request)
-  '((code . 200)
+  `((code . 200)
     (headers . ((Content-type . "text/html")))
-    (content . "this is an about page")))
+    (content . ,(->string
+                  (list "this is an about page<br>"
+                        "your request: " request)))))
 
 (define dispatcher (robusta/dispatcher
                      `(("/" . ,index)

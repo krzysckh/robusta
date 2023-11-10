@@ -25,6 +25,8 @@
         ((list? x) (foldl string-append
                           ""
                           (map (λ (x) (string-append (->string x) " ")) x)))
+        ((pair? x) (string-append (->string (car x)) " "
+                                  (->string (cdr x)) " "))
         ((number? x) (number->string x))
         ((symbol? x) (symbol->string x))
         ((boolean? x) (bool->string x))
@@ -37,19 +39,29 @@
       (let* ((ip (car c))
              (fd (cdr c))
              (port (fd->port fd)))
+        ; TODO: find out why owl fails somewhere here with errno SIGPIPE from
+        ; send(), although, i'm clearly checking if port is writeable?
+        ; i really, really don't want to check that on each and every print-to
+        ; call, or maybe i should define it as a function? i don't know.
+        ; i am clearly not out of ideas, yet i have no internal need to
+        ; implement and fix that now, though i know this is a serious problem,
+        ; and i should repair that immidiately. my mind really just wants to
+        ; relax and write (robusta encoding json) :3
+
         ; (send 200 '((Content-type . "text/html")) "<h1> helo </h1>")
         ; you shouldn't provide Content-length
         `((send . ,(lambda (code headers text)
-                     (print-to port (->string `("HTTP/1.1" ,code)))
-                     (for-each
-                       (lambda (v)
-                         (print-to port (string-append (->string (car v)) ": "
-                                                       (->string (cdr v)))))
-                       headers)
-                     (print-to port (->string `("Content-length: "
-                                                ,(string-length text))))
-                     (print-to port "")
-                     (print-to port text)))
+                     (when (writeable? port)
+                       (print-to port (->string `("HTTP/1.1" ,code)))
+                       (for-each
+                         (lambda (v)
+                           (print-to port (string-append (->string (car v)) ": "
+                                                         (->string (cdr v)))))
+                         headers)
+                       (print-to port (->string `("Content-length: "
+                                                  ,(string-length text))))
+                       (print-to port "")
+                       (print-to port text))))
           (request . ,(http/parse-by-fd fd))
           (ip . ,ip)
           (fd . ,fd))))
