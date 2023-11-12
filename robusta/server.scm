@@ -1,7 +1,13 @@
+#| doc
+serving *stuff*
+
+this library implements a basic http server
+|#
 (define-library
   (robusta server)
 
   (import
+    (owl proof)
     (owl core)
     (owl io)
     (owl syscall)
@@ -13,10 +19,15 @@
 
   (export
     bool->string
-    ->string     ; i should probably move it somewhere else
+    ->string
     bind)
 
   (begin
+    (define (safe-print-to port s)
+      (if (writeable? port)
+        (print-to port s)
+        (print "port not writeable")))
+
     (define (bool->string v)
       (if v "#t" "#f"))
 
@@ -51,17 +62,17 @@
         ; (send 200 '((Content-type . "text/html")) "<h1> helo </h1>")
         ; you shouldn't provide Content-length
         `((send . ,(lambda (code headers text)
-                     (when (writeable? port)
-                       (print-to port (->string `("HTTP/1.1" ,code)))
-                       (for-each
-                         (lambda (v)
-                           (print-to port (string-append (->string (car v)) ": "
-                                                         (->string (cdr v)))))
-                         headers)
-                       (print-to port (->string `("Content-length: "
-                                                  ,(string-length text))))
-                       (print-to port "")
-                       (print-to port text))))
+                     (safe-print-to port (->string `("HTTP/1.1" ,code)))
+                     (for-each
+                       (lambda (v)
+                         (safe-print-to port (string-append
+                                               (->string (car v))
+                                               ": " (->string (cdr v)))))
+                       headers)
+                     (safe-print-to port (->string `("Content-length: "
+                                                ,(string-length text))))
+                     (safe-print-to port "")
+                     (safe-print-to port text)))
           (request . ,(http/parse-by-fd fd))
           (ip . ,ip)
           (fd . ,fd))))
@@ -72,13 +83,13 @@
         ((clients (tcp-clients port))
          (caller (lambda (v)
                    (let ((current (v)))
-                     (thread
+                     ;(thread
                        (string->symbol
                          (string-append
                            "thr-"
                            (number->string (time-ns))))
                        (f (c->request (car current)))
-                       ) ; this parentheses is spread like that to allow easy
+                       ;) ; this parentheses is spread like that to allow easy
                          ; debugging
                      (caller (cdr current))))))
         (caller clients)))

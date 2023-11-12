@@ -1,3 +1,10 @@
+#| doc
+http *stuff*
+
+you probably shouldn't use this library by itself.
+it's nicely packaged inside of `(robusta dispatcher)`
+|#
+
 (define-library
   (robusta http)
 

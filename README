@@ -1,1 +1,4 @@
-web framework for owl lisp
+web framework for owl lisp.
+
+create documentation:
+  $ make doc

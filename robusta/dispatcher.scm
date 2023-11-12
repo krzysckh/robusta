@@ -1,3 +1,7 @@
+#| doc
+creating dispatchers
+
+|#
 (define-library
   (robusta dispatcher)
 
@@ -29,5 +33,4 @@
                      (headers (cdr (assq 'headers vals)))
                      (content (cdr (assq 'content vals))))
                 (send code headers content)))))))
-
     ))
