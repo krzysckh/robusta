@@ -16,6 +16,7 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
   (robusta encoding json)
 
   (import
+    (owl eval)
     (owl core)
     (owl syscall)
     (owl io)
@@ -32,6 +33,7 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
     encode)
 
   (begin
+    ;; i don't think json-syntax-error should be fatal
     (define (json-syntax-error s . l)
       (print-to stderr (->string (list "json-syntax-error: " s)))
       (when (not (eqv? l '()))
@@ -55,6 +57,7 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
                    (error "digit?" "unexpected type")))))
         ((string->regex "m/^[0-9]/") c)))
 
+    ; FIXME: do it as ECMA-404's fig. 4
     ;; s "" → string(n)
     (define (get-number s acc)
       (cond
@@ -64,63 +67,104 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
         (else
           acc)))
 
-    ;; s "" -> (parsed-s . skip)
+    ;; s "" → (parsed-s . skip)
     (define (get-string s acc)
-      (error "not implemented" "")
-      )
+      (error "not implemented" ""))
 
-    (define (get-array-skip s acc)
-      (cond
-        ((string=? (substring s 0 1) "]") (+ acc 1))
-        (else
-          (get-array-skip (substring s 1 (string-length s)) (+ 1 acc)))))
-
-    (define (parse-array s acc)
-      (let ((first-char (substring s 0 1)))
+    ;; s "" → (string(tok) | #f . skip | #f)
+    (define (get-literal-tok s acc)
+      (let ((first-char (car (string->list s))))
         (cond
-          ((string=? first-char "]") acc)
-          ((or (string=? first-char " ")
-               (string=? first-char "\t")
-               (string=? first-char ","))
-           (parse-array (substring s 1 (string-length s)) acc))
-          (((string->regex "m/^[0-9]+/") s)
-           (let ((n (get-number s "")))
-             (parse-array
-               (substring s (string-length n) (string-length s))
-               (append acc `(,(string->number n))))))
-          ((string=? first-char "[")
-           (parse-array
-             (substring s (get-array-skip s 0) (string-length s))
-             (append acc
-                     (list (parse-array
-                             (substring s 1 (string-length s))
-                             '())))))
-          ((string=? first-char "\"")
-           (let* ((S (get-string s ""))
-                  (actual-string (car S))
-                  (skip (cdr S)))
-             (parse-array (substring s skip (string-length s))
-                          (append acc `(,actual-string)))))
+          ((or (eqv? first-char #\])
+               (eqv? first-char #\})
+               (eqv? first-char #\,)
+               (eqv? first-char #\space))
+           (if (or (string=? acc "true")
+                   (string=? acc "false")
+                   (string=? acc "null"))
+             `(,acc . ,(string-length acc))
+             `(#f . #f)))
           (else
-            (print "not-implemented: true | false | object")
-            (json-syntax-error "failed to parse-array"
-                               (string-append "here → "s))))))
+            (get-literal-tok (substring s 1 (string-length s))
+                             (string-append acc (substring s 0 1)))))))
+
+    (define (get-array-skip s)
+      (letrec ((f (lambda (s acc bad-acc)
+                    (cond
+                      ((and (string=? (substring s 0 1) "]")
+                            (<= bad-acc 1)) (+ acc 1))
+                      ((string=? (substring s 0 1) "]")
+                       (f (substring s 1 (string-length s))
+                          (+ 1 acc)
+                          (- bad-acc 1)))
+                      ((string=? (substring s 0 1) "[")
+                       (f (substring s 1 (string-length s))
+                          (+ 1 acc)
+                          (+ 1 bad-acc)))
+                      (else
+                        (f (substring s 1 (string-length s))
+                           (+ 1 acc)
+                           bad-acc))))))
+        (f s 0 0)))
+
+    (define (next-token s)
+      (let ((first-char (car (string->list s)))
+            (n-re (string->regex "m/^[0-9]+/")))
+        (cond
+          ((n-re s)
+           (substring s (string-length (get-number s "")) (string-length s)))
+          ((eq? first-char #\")
+           (substring s (cdr (get-string s)) (string-length s)))
+          ((eq? first-char #\space)
+           (next-token (substring s 1 (string-length s))))
+          ((car (get-literal-tok s ""))
+           (substring s (string-length (car (get-literal-tok s "")))
+                      (string-length s)))
+          (else
+            (substring s 1 (string-length s))))))
 
     (define (parse-object s acc)
       (error "TODO" "")
       )
 
     (define (decode s)
-      (let ((first-char (car* (string->list s))))
+      (letrec ((parse-array
+                 (lambda (s acc)
+                   (let ((first-char (substring s 0 1)))
+                     (cond
+                       ((string=? first-char "]") acc)
+                       ((string=? first-char "[")
+                         (parse-array (substring s (get-array-skip s)
+                                                 (string-length s))
+                                      (append acc (list (decode s)))))
+                       ((or (string=? first-char " ")
+                            (string=? first-char "\t")
+                            (string=? first-char ","))
+                        (parse-array (substring s 1 (string-length s)) acc))
+                       (else
+                         (parse-array (next-token s)
+                                      (append acc (list (decode s)))))))))
+               (first-char (car* (string->list s))))
         (cond
+          ((eq? first-char " ") (decode (substring s 1 (string-length s))))
+          ((digit? first-char) (string->number (get-number s "")))
+          ((eq? first-char "\"") (car (get-string s "")))
           ((eq? first-char #\[)
            (parse-array (substring s 1 (string-length s)) '()))
           ((eq? first-char #\{)
            (parse-object (substring s 1 (string-length s)) '()))
+          ((car (get-literal-tok s ""))
+           (let* ((T (get-literal-tok s ""))
+                  (tok (car T))
+                  (skip (cdr T)))
+             (cond
+               ((string=? "true" tok) #t)
+               ((string=? "false" tok) #f)
+               ((string=? "null" tok) 'null))))
           (else
-            (json-syntax-error "invalid first-char: "
+            (json-syntax-error "invalid char:"
                    (string-append "here → " s)
-                   "expected: [ or {")))))
+                   "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
     (define (encode lst)
       (error "not" 'implemented) ; fancy
