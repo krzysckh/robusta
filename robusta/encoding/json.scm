@@ -10,7 +10,12 @@ features, not bugs, include, but are not limited to:
   - `[1,2,3 4]` → `(1 2 3 4)`
   - `[,,,,,]`   → `()`
 
+be warned that this implementation is **really** slow. like **proper** slow slow.
+i may fix that in the future, but for now it is what it is.
+
 https://ecma-international.org/publications-and-standards/standards/ecma-404/
+
+me me likey accumulators
 |#
 (define-library
   (robusta encoding json)
@@ -42,6 +47,11 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
           (λ (s) (print-to stderr (string-append "    " (->string s)))) l))
       #f)
 
+    ; json string → string that will fit on a string for error reporting
+    (define (jsons->strerr s)
+      (cond
+        ((> (string-length s) 16) (substring s 0 16))
+        (else s)))
 
     (define (object? lst)
           (not (has? (map (λ (l) (or (pair? l)
@@ -68,8 +78,21 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
           acc)))
 
     ;; s "" → (parsed-s . skip)
-    (define (get-string s acc)
-      (error "not implemented" ""))
+    ; ECMA-404's fig. 5
+    (define (get-string s acc skip-n)
+      (let ((fc (car* (string->list s))))
+        (cond
+          ((null? fc) (json-syntax-error
+                        "expected '\"'"
+                        "got null?"
+                        (string-append "here →" (jsons->strerr s))))
+          ((eq? fc #\") `(,acc . ,(+ skip-n 1)))
+          ((eq? fc #\\) (json-syntax-error "not-implemented-error"
+                                           "backslash in string"))
+          (else
+            (get-string (substring s 1 (string-length s))
+                        (string-append acc (string fc))
+                        (+ skip-n 1))))))
 
     ;; s "" → (string(tok) | #f . skip | #f)
     (define (get-literal-tok s acc)
@@ -88,23 +111,25 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
             (get-literal-tok (substring s 1 (string-length s))
                              (string-append acc (substring s 0 1)))))))
 
-    (define (get-array-skip s)
-      (letrec ((f (lambda (s acc bad-acc)
-                    (cond
-                      ((and (string=? (substring s 0 1) "]")
-                            (<= bad-acc 1)) (+ acc 1))
-                      ((string=? (substring s 0 1) "]")
-                       (f (substring s 1 (string-length s))
-                          (+ 1 acc)
-                          (- bad-acc 1)))
-                      ((string=? (substring s 0 1) "[")
-                       (f (substring s 1 (string-length s))
-                          (+ 1 acc)
-                          (+ 1 bad-acc)))
-                      (else
+    (define (get-array-object-skip s T)
+      (letrec* ((S (if (eqv? T 'array) "[" "{"))
+                (E (if (eqv? T 'array) "]" "}"))
+                (f (lambda (s acc bad-acc)
+                     (cond
+                       ((and (string=? (substring s 0 1) E)
+                             (<= bad-acc 1)) (+ acc 1))
+                       ((string=? (substring s 0 1) E)
                         (f (substring s 1 (string-length s))
                            (+ 1 acc)
-                           bad-acc))))))
+                           (- bad-acc 1)))
+                       ((string=? (substring s 0 1) S)
+                        (f (substring s 1 (string-length s))
+                           (+ 1 acc)
+                           (+ 1 bad-acc)))
+                       (else
+                         (f (substring s 1 (string-length s))
+                            (+ 1 acc)
+                            bad-acc))))))
         (substring s (f s 0 0) (string-length s))))
 
     (define (next-token s)
@@ -113,8 +138,13 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
         (cond
           ((n-re s)
            (substring s (string-length (get-number s "")) (string-length s)))
-          ((eq? fc #\")
-           (substring s (cdr (get-string s)) (string-length s)))
+          ((eq? fc #\") (substring
+                          s
+                          (cdr (get-string
+                                 (substring s 1 (string-length s)) "" 1))
+                          (string-length s)))
+          ((eq? fc #\[) (get-array-object-skip s 'array))
+          ((eq? fc #\{) (get-array-object-skip s 'object))
           ((eq? fc #\space)
            (next-token (substring s 1 (string-length s))))
           ((car (get-literal-tok s ""))
@@ -123,19 +153,12 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
           (else
             (substring s 1 (string-length s))))))
 
-    (define (parse-object s acc)
-      (error "TODO" "")
-      )
-
     (define (decode s)
       (letrec ((parse-array
                  (lambda (s acc)
                    (let ((fc (car (string->list s))))
                      (cond
                        ((eqv? fc #\]) acc)
-                       ((eqv? fc #\[)
-                         (parse-array (get-array-skip s)
-                                      (append acc (list (decode s)))))
                        ((or (eqv? fc #\space)
                             (eqv? fc #\tab)
                             (eqv? fc #\,))
@@ -143,15 +166,47 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
                        (else
                          (parse-array (next-token s)
                                       (append acc (list (decode s)))))))))
+               (parse-object
+                 ; key == expects value, adds to acc only when value given
+                 ; should be called as (parse-object s '() '()) teehee :33
+                 (lambda (s acc key)
+                   (let ((fc (car (string->list s))))
+                     (cond
+                       ; expects key | } | , | #\space
+                       ((eq? fc #\}) acc)
+                       ((or (eq? fc #\space) (eq? fc #\,))
+                        (parse-object (substring s 1 (string-length s))
+                                      acc key))
+                       ((null? key)
+                        (let ((val (decode s)))
+                          (if (string? val)
+                            (parse-object (next-token s) acc val)
+                            (json-syntax-error
+                              "expected key as string?: "
+                              (string-append "got " (->string val))
+                              (string-append "here → " (jsons->strerr s))))))
+                       (else
+                         ; expects value
+                         (cond
+                           ((or (eq? fc #\space) (eq? fc #\:))
+                            (parse-object (substring s 1 (string-length s))
+                                          acc key))
+                           (else
+                             (parse-object (next-token s)
+                                           (append
+                                             acc
+                                             (list (cons key (decode s))))
+                                           '()))))))))
                (fc (car* (string->list s))))
         (cond
-          ((eq? fc " ") (decode (substring s 1 (string-length s))))
+          ((eq? fc #\space) (decode (substring s 1 (string-length s))))
           ((digit? fc) (string->number (get-number s "")))
-          ((eq? fc "\"") (car (get-string s "")))
+          ((eq? fc #\") (car (get-string
+                               (substring s 1 (string-length s)) "" 0)))
           ((eq? fc #\[)
            (parse-array (substring s 1 (string-length s)) '()))
           ((eq? fc #\{)
-           (parse-object (substring s 1 (string-length s)) '()))
+           (parse-object (substring s 1 (string-length s)) '() '()))
           ((car (get-literal-tok s ""))
            (let* ((T (get-literal-tok s ""))
                   (tok (car T))
@@ -161,9 +216,10 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
                ((string=? "false" tok) #f)
                ((string=? "null" tok) 'null))))
           (else
-            (json-syntax-error "invalid char:"
-                   (string-append "here → " s)
-                   "expected: [ | { | [0-9]+ | \" | true | false | null")))))
+            (json-syntax-error
+              "invalid char:"
+              (string-append "here → " (jsons->strerr s))
+              "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
     (define (encode lst)
       (error "not" 'implemented) ; fancy

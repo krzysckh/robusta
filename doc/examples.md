@@ -12,7 +12,6 @@
       (send 200 '((Content-type . "text/html")) "hello!"))))
 ```
 
-
 ### simple server *with* dispatchers
 
 ```scheme
@@ -37,4 +36,13 @@
                        ("/about" . ,about))))
 
 (robusta/bind 8080 dispatcher)
+```
+
+### using (robusta encoding json)
+
+```scheme
+(import (prefix (robusta encoding json) json/))
+
+(define json-string "[1, 2, [3], [[4]], [[[5]]], [[[[6]]]], 7]")
+(print (json/decode json-string)) ; → (1 2 (3) ((4)) (((5))) ((((6)))) 7)
 ```
