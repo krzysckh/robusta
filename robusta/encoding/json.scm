@@ -47,6 +47,9 @@ me me likey accumulators
           (λ (s) (print-to stderr (string-append "    " (->string s)))) l))
       #f)
 
+    ; this expression is used too often so i just...
+    (define (+s s) (substring s 1 (string-length s)))
+
     ; json string → string that will fit on a string for error reporting
     (define (jsons->strerr s)
       (cond
@@ -72,8 +75,7 @@ me me likey accumulators
     (define (get-number s acc)
       (cond
         ((digit? s)
-         (get-number (substring s 1 (string-length s))
-                     (string-append acc (substring s 0 1))))
+         (get-number (+s s) (string-append acc (substring s 0 1))))
         (else
           acc)))
 
@@ -90,9 +92,7 @@ me me likey accumulators
           ((eq? fc #\\) (json-syntax-error "not-implemented-error"
                                            "backslash in string"))
           (else
-            (get-string (substring s 1 (string-length s))
-                        (string-append acc (string fc))
-                        (+ skip-n 1))))))
+            (get-string (+s s) (string-append acc (string fc)) (+ skip-n 1))))))
 
     ;; s "" → (string(tok) | #f . skip | #f)
     (define (get-literal-tok s acc)
@@ -108,7 +108,7 @@ me me likey accumulators
              `(,acc . ,(string-length acc))
              `(#f . #f)))
           (else
-            (get-literal-tok (substring s 1 (string-length s))
+            (get-literal-tok (+s s)
                              (string-append acc (substring s 0 1)))))))
 
     (define (get-array-object-skip s T)
@@ -119,15 +119,15 @@ me me likey accumulators
                        ((and (string=? (substring s 0 1) E)
                              (<= bad-acc 1)) (+ acc 1))
                        ((string=? (substring s 0 1) E)
-                        (f (substring s 1 (string-length s))
+                        (f (+s s)
                            (+ 1 acc)
                            (- bad-acc 1)))
                        ((string=? (substring s 0 1) S)
-                        (f (substring s 1 (string-length s))
+                        (f (+s s)
                            (+ 1 acc)
                            (+ 1 bad-acc)))
                        (else
-                         (f (substring s 1 (string-length s))
+                         (f (+s s)
                             (+ 1 acc)
                             bad-acc))))))
         (substring s (f s 0 0) (string-length s))))
@@ -139,19 +139,15 @@ me me likey accumulators
           ((n-re s)
            (substring s (string-length (get-number s "")) (string-length s)))
           ((eq? fc #\") (substring
-                          s
-                          (cdr (get-string
-                                 (substring s 1 (string-length s)) "" 1))
-                          (string-length s)))
+                          s (cdr (get-string (+s s) "" 1)) (string-length s)))
           ((eq? fc #\[) (get-array-object-skip s 'array))
           ((eq? fc #\{) (get-array-object-skip s 'object))
-          ((eq? fc #\space)
-           (next-token (substring s 1 (string-length s))))
+          ((eq? fc #\space) (next-token (+s s)))
           ((car (get-literal-tok s ""))
            (substring s (string-length (car (get-literal-tok s "")))
                       (string-length s)))
           (else
-            (substring s 1 (string-length s))))))
+            (+s s)))))
 
     (define (decode s)
       (letrec ((parse-array
@@ -162,10 +158,10 @@ me me likey accumulators
                        ((or (eqv? fc #\space)
                             (eqv? fc #\tab)
                             (eqv? fc #\,))
-                        (parse-array (substring s 1 (string-length s)) acc))
+                        (parse-array (+s s) acc))
                        (else
-                         (parse-array (next-token s)
-                                      (append acc (list (decode s)))))))))
+                         (parse-array
+                           (next-token s) (append acc (list (decode s)))))))))
                (parse-object
                  ; key == expects value, adds to acc only when value given
                  ; should be called as (parse-object s '() '()) teehee :33
@@ -175,8 +171,7 @@ me me likey accumulators
                        ; expects key | } | , | #\space
                        ((eq? fc #\}) acc)
                        ((or (eq? fc #\space) (eq? fc #\,))
-                        (parse-object (substring s 1 (string-length s))
-                                      acc key))
+                        (parse-object (+s s) acc key))
                        ((null? key)
                         (let ((val (decode s)))
                           (if (string? val)
@@ -189,7 +184,7 @@ me me likey accumulators
                          ; expects value
                          (cond
                            ((or (eq? fc #\space) (eq? fc #\:))
-                            (parse-object (substring s 1 (string-length s))
+                            (parse-object (+s s)
                                           acc key))
                            (else
                              (parse-object (next-token s)
@@ -199,14 +194,11 @@ me me likey accumulators
                                            '()))))))))
                (fc (car* (string->list s))))
         (cond
-          ((eq? fc #\space) (decode (substring s 1 (string-length s))))
+          ((eq? fc #\space) (decode (+s s)))
           ((digit? fc) (string->number (get-number s "")))
-          ((eq? fc #\") (car (get-string
-                               (substring s 1 (string-length s)) "" 0)))
-          ((eq? fc #\[)
-           (parse-array (substring s 1 (string-length s)) '()))
-          ((eq? fc #\{)
-           (parse-object (substring s 1 (string-length s)) '() '()))
+          ((eq? fc #\") (car (get-string (+s s) "" 0)))
+          ((eq? fc #\[) (parse-array (+s s) '()))
+          ((eq? fc #\{) (parse-object (+s s) '() '()))
           ((car (get-literal-tok s ""))
            (let* ((T (get-literal-tok s ""))
                   (tok (car T))
