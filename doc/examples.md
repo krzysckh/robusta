@@ -44,5 +44,7 @@
 (import (prefix (robusta encoding json) json/))
 
 (define json-string "[1, 2, [3], [[4]], [[[5]]], [[[[6]]]], 7]")
+(define json-structure '((a . "10") (b . #f)))
 (print (json/decode json-string)) ; → (1 2 (3) ((4)) (((5))) ((((6)))) 7)
+(print (json/encode json-structure)) ; → {"a":"10","b":false}
 ```

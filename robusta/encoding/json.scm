@@ -10,6 +10,9 @@ features, not bugs, include, but are not limited to:
   - `[1,2,3 4]` → `(1 2 3 4)`
   - `[,,,,,]`   → `()`
 
+it can also `encode` json, where objects are defined like this:
+`'((a . b) (c . d))`, so a list with key-value pairs.
+
 be warned that this implementation is **really** slow. like **proper** slow slow.
 i may fix that in the future, but for now it is what it is.
 
@@ -33,7 +36,6 @@ me me likey accumulators
     (only (robusta server) ->string))
 
   (export
-    object?
     decode
     encode)
 
@@ -56,11 +58,6 @@ me me likey accumulators
         ((> (string-length s) 16) (substring s 0 16))
         (else s)))
 
-    (define (object? lst)
-          (not (has? (map (λ (l) (or (pair? l)
-                                     (and (list? l)
-                                          (eq? (length l) 2)
-                                          (not (list? (car l)))))) lst) #f)))
     (define (digit? chr)
       (let ((c (cond
                  ((string? chr) (substring chr 0 1))
@@ -70,7 +67,7 @@ me me likey accumulators
                    (error "digit?" "unexpected type")))))
         ((string->regex "m/^[0-9]/") c)))
 
-    ; FIXME: do it as ECMA-404's fig. 4
+    ; TODO: do it as ECMA-404's fig. 4
     ;; s "" → string(n)
     (define (get-number s acc)
       (cond
@@ -213,7 +210,45 @@ me me likey accumulators
               (string-append "here → " (jsons->strerr s))
               "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
-    (define (encode lst)
-      (error "not" 'implemented) ; fancy
-      )
+    ; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
+    (define (encode-string s)
+      (string-append "\"" s "\""))
+
+    (define (object? lst)
+      (and (list? lst)
+           (not (has? (map pair? lst) #f))
+           (not (has? (map
+                        (λ (x) (or (symbol? (car x))
+                                   (string? (car x)))) lst) #f))))
+
+    (define (encode v)
+      (let ((encode-list
+              (λ (lst)
+                (let* ((l (apply
+                            string-append
+                            (map (λ (x) (string-append (encode x) "," )) lst)))
+                       (L (substring l 0 (- (string-length l) 1))))
+                  (string-append "[" L "]"))))
+            (encode-object
+              (λ (obj)
+                (let* ((o (apply
+                            string-append
+                            (map (λ (x) (string-append
+                                           (encode (->string (car x)))
+                                           ":" (encode (cdr x)) ",")) obj)))
+                       (O (substring o 0 (- (string-length o) 1))))
+                  (string-append "{" O "}"))
+                )))
+        (cond
+          ((object? v) (encode-object v))
+          ((list? v) (encode-list v))
+          ((number? v) (number->string v))
+          ((string? v) (encode-string v))
+          ((symbol? v) (encode (symbol->string v)))
+          ((pair? v) (encode-list v))
+          ((eq? v #t) "true")
+          ((eq? v #f) "false")
+          (else
+            (json-syntax-error "unexpeced type: " v) "false"))
+        ))
     ))
