@@ -72,7 +72,8 @@ this library implements a basic http server
                      (safe-print-to port (->string `("Content-length: "
                                                 ,(string-length text))))
                      (safe-print-to port "")
-                     (safe-print-to port text)))
+                     (safe-print-to port text)
+                     (close-port port)))
           (request . ,(http/parse-by-fd fd))
           (ip . ,ip)
           (fd . ,fd))))
