@@ -7,6 +7,7 @@ creating dispatchers
 
   (import
     (owl core)
+    (owl regex)
     (owl syscall)
     (owl io)
     (owl list)
@@ -16,13 +17,24 @@ creating dispatchers
     dispatcher)
 
   (begin
+    (define (dispatch? path req)
+      (if (>= (string-length path) 2)
+        (if (string=? (substring path 1 2) "/")
+          (begin
+            (print 's->r path req)
+            (print ((string->regex path) req))
+            ((string->regex path) req))
+          (string=? path req))
+        (string=? path req)))
+
+
     (define (dispatcher lst)
       (lambda (r)
         (let* ((send (cdr (assq 'send r)))
                (request (cdr (assq 'request r)))
                (path (cdr (assq 'path request)))
                (used-dispatcher (car* (filter
-                                        (λ (d) (string=? (car d) path)) lst))))
+                                        (λ (d) (dispatch? (car d) path)) lst))))
 
           ; TODO: custom 404 page
           (if (eqv? '() used-dispatcher)

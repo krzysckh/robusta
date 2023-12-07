@@ -18,7 +18,7 @@
 
 (define dispatcher
   (robusta/dispatcher
-    `(("/" . ,index)
+    `(("m/\\/(index)?$/" . ,index)
       ("/about" . ,about)
       ("/api" . ,(lambda (req)
                    `((code . 200)

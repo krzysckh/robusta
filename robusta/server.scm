@@ -10,7 +10,9 @@ this library implements a basic http server
     (owl proof)
     (owl core)
     (owl io)
+    (owl sys)
     (owl syscall)
+    (owl thread)
     (owl list)
     (owl time)
     (owl lazy)
@@ -84,14 +86,17 @@ this library implements a basic http server
         ((clients (tcp-clients port))
          (caller (lambda (v)
                    (let ((current (v)))
-                     ;(thread
+                     (print (list "in caller: " current))
+                     (thread
                        (string->symbol
                          (string-append
                            "thr-"
                            (number->string (time-ns))))
-                       (f (c->request (car current)))
-                       ;) ; this parentheses is spread like that to allow easy
+                       (begin
+                         (catch-signals (list sigpipe))
+                         (set-signal-action signal-handler/ignore)
+                         (f (c->request (car current))))
+                       ) ; this parentheses is spread like that to allow easy
                          ; debugging
                      (caller (cdr current))))))
-        (caller clients)))
-    ))
+        (caller clients)))))
