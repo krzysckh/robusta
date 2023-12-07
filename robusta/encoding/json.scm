@@ -76,7 +76,27 @@ me me likey accumulators
         (else
           acc)))
 
-    ;; s "" → (parsed-s . skip)
+    ; s acc → (parsed-seq next n)
+    (define (parse-escape s acc)
+      (let ((fc (car (string->list s))))
+        (cond 
+          ((and (eq? fc #\\) (null? acc)) (parse-escape (+s s) acc))
+          ((eq? fc #\\) `("\\" ,(+s s) 2))
+          ((eq? fc #\") `("\"" ,(+s s) 2))
+          ((eq? fc #\/) `("/" ,(+s s) 2))
+          ((eq? fc #\f) (json-syntax-error "not-implemented-error"
+                                           "backslash f"))
+          ((eq? fc #\n) `("\n" ,(+s s) 2))
+          ((eq? fc #\r) `("\r" ,(+s s) 2))
+          ((eq? fc #\t) `("\t" ,(+s s) 2))
+          ((eq? fc #\u) (json-syntax-error "not-implemented-error"
+                                           "backslash u"))
+          (else
+            (json-syntax-error "syntax-error"
+                               "invalid escape"
+                               (jsons->strerr s))))))
+
+    ;; s "" 0 → (parsed-s skip)
     ; ECMA-404's fig. 5
     (define (get-string s acc skip-n)
       (let ((fc (car* (string->list s))))
@@ -86,8 +106,12 @@ me me likey accumulators
                         "got null?"
                         (string-append "here →" (jsons->strerr s))))
           ((eq? fc #\") `(,acc . ,(+ skip-n 1)))
-          ((eq? fc #\\) (json-syntax-error "not-implemented-error"
-                                           "backslash in string"))
+          ((eq? fc #\\)
+           (let* ((l (parse-escape s '()))
+                  (S (list-ref l 0))
+                  (next (list-ref l 1))
+                  (n (list-ref l 2)))
+             (get-string next (string-append acc S) (+ skip-n n))))
           (else
             (get-string (+s s) (string-append acc (string fc)) (+ skip-n 1))))))
 
