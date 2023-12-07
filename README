@@ -1,4 +1,4 @@
 web framework for owl lisp.
 
-create documentation:
-  $ make doc
+read documentation:
+  https://pub.krzysckh.org/robusta.html

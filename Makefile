@@ -1,6 +1,6 @@
 FEATHER=/tmp/feather
 
-.PHONY: doc doc/*
+.PHONY: doc doc/* pubcpy
 
 doc: doc/robusta.html doc/robusta.pdf
 open-doc: doc
@@ -18,3 +18,5 @@ doc/robusta.md: $(FEATHER)
 $(FEATHER):
 	wget -O $(FEATHER) https://gitlab.com/owl-lisp/owl/-/raw/master/bin/feather
 	chmod +x $(FEATHER)
+pubcpy: doc
+	cd doc && yes | pubcpy robusta.html
