@@ -48,3 +48,18 @@
 (print (json/decode json-string)) ; → (1 2 (3) ((4)) (((5))) ((((6)))) 7)
 (print (json/encode json-structure)) ; → {"a":"10","b":false}
 ```
+
+### using (robusta encoding html)
+
+```scheme
+(import (prefix (robusta server) robusta/))
+(import (prefix (robusta dispatcher) robusta/))
+(import (prefix (robusta encoding html) html/))
+
+(define (idx request)
+  `((code . 200)
+    (headers . ((Content-type . "text/html")))
+    (content . ,(html/encode '(html (head) (body (p "this the only page")))))))
+
+(robusta/bind 8080 (robusta/dispatcher `(("m/^.*$/" . ,idx))))
+```

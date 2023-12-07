@@ -1,13 +1,14 @@
 (import (prefix (robusta server) robusta/))
 (import (prefix (robusta dispatcher) robusta/))
+(import (prefix (robusta encoding html) html/))
 (import (only (robusta server) ->string))
 
 (import (prefix (robusta encoding json) json/))
 
 (define (index request)
-  '((code . 200)
+  `((code . 200)
     (headers . ((Content-type . "text/html")))
-    (content . "this is the index page")))
+    (content . ,(html/encode '(html (head) (body (p "this is an index page")))))))
 
 (define (about request)
   `((code . 200)
@@ -25,4 +26,5 @@
                      (headers . ((Content-type "application/json")))
                      (content . ,(json/encode '((a . "10") (b .  #f))))))))))
 
-(robusta/bind 8080 dispatcher)
+(lambda (args)
+  (robusta/bind 8080 dispatcher))

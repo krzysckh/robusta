@@ -20,10 +20,7 @@ creating dispatchers
     (define (dispatch? path req)
       (if (>= (string-length path) 2)
         (if (string=? (substring path 1 2) "/")
-          (begin
-            (print 's->r path req)
-            (print ((string->regex path) req))
-            ((string->regex path) req))
+          ((string->regex path) req)
           (string=? path req))
         (string=? path req)))
 
