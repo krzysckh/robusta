@@ -90,7 +90,7 @@ me me likey accumulators
           ((eq? fc #\r) `("\r" ,(+s s) 2))
           ((eq? fc #\t) `("\t" ,(+s s) 2))
           ((eq? fc #\u) (json-syntax-error "not-implemented-error"
-                                           "backslash u"))
+                                           "backslash u") `("" ,(+s s) 2))
           (else
             (json-syntax-error "syntax-error"
                                "invalid escape"
