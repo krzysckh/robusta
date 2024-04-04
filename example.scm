@@ -17,10 +17,12 @@
 ;;                   (list "this is an about page<br>"
 ;;                         "your request: " request)))))
 
+(define static-folder "static/")
 (define dispatcher
   (robusta/dispatcher
-   `(("m/\\/(index)?$/" . ,index)
-     ("m/static\\/.*/" . ,(λ (req) (robusta/static-dispatcher "static/" req))))))
+   `(("m/^\\/(index)?$/" . ,index)
+     ("m/static\\/.*/" . ,(λ (req) (robusta/static-dispatcher static-folder req)))
+     ("/static/" . ,(λ (req) (robusta/static-index static-folder req))))))
 
       ;; ("/api" . ,(lambda (req)
       ;;              `((code . 200)
