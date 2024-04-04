@@ -12,6 +12,7 @@ creating dispatchers
    (owl io)
    (owl list)
    (scheme base)
+   (robusta mime)
    (only (robusta server) ->string))
 
   (export
@@ -27,24 +28,6 @@ creating dispatchers
               (string=? path req))
           (string=? path req)))
 
-    (define content-type-al
-      '((html . "text/html")
-        (png  . "image/png")
-        (jpg  . "image/jpeg")
-        (jpeg . "image/jpeg")
-        (exe  . "application/octet-stream")
-        (mp4  . "video/mp4")
-        (css  . "text/css")
-        (js   . "text/javascript")
-        (svg  . "image/svg+xml")))
-
-    (define default-content-type "text/plain")
-
-    (define (content-type-by-file f)
-      (let* ((ext (last ((string->regex "c/\\./") f) ""))
-             (r (assq (string->symbol ext) content-type-al)))
-        (if r (cdr r) default-content-type)))
-
     (define (file->lst f)
       (let* ((p (open-input-file f))
              (r (port->byte-stream p)))
@@ -56,7 +39,7 @@ creating dispatchers
              (path (substring req-path fl (string-length req-path))))
         `((code . 200)
           (headers . ((Accept-ranges . "bytes")
-                      (Content-type . ,(content-type-by-file path))))
+                      (Content-type . ,(path->mime path))))
           (content . ,(file->lst (string-append from path))))))
 
     (define (dispatcher lst)
