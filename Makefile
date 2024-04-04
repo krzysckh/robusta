@@ -13,10 +13,12 @@ doc/robusta.pdf: doc/robusta.md
 doc/robusta.md: $(FEATHER)
 	$(FEATHER) -o doc/robusta.md --title "(robusta)" \
 		doc/prelude.md \
-		`find ./robusta -type f` \
+		`find ./robusta -type f -iname '*.scm'` \
 		doc/examples.md
 $(FEATHER):
 	wget -O $(FEATHER) https://gitlab.com/owl-lisp/owl/-/raw/master/bin/feather
 	chmod +x $(FEATHER)
 pubcpy: doc
 	cd doc && yes | pubcpy robusta.html
+clean:
+	rm -f doc/robusta.md doc/robusta.html doc/robusta.pdf

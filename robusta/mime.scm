@@ -1,3 +1,6 @@
+#| doc
+MIME types
+|#
 (define-library
   (robusta mime)
 
@@ -10,6 +13,7 @@
 
   (begin
     (define default-mime-type "text/plain")
+    ;; source: OpenBSD /usr/share/misc/mime.types
     (define mime-type-alist
       '((atom           . "application/atom+xml")
         (woff           . "application/font-woff")
