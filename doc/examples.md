@@ -63,3 +63,26 @@
 
 (robusta/bind 8080 (robusta/dispatcher `(("m/^.*$/" . ,idx))))
 ```
+
+### static pages with an index dispatcher
+
+```scheme
+(import
+ (robusta server)
+ (robusta dispatcher)
+ (prefix (robusta encoding html) html/))
+
+(define index-html
+  (html/encode
+   `(html
+     (head)
+     (body "see the static pages" ((a (href . "static/")) "here")))))
+
+(define dis (dispatcher
+             `(("m/static(\\/.*)?/" . ,(λ (req) (static-dispatcher "static/" req)))
+               ("m/\\/?/" . ,(λ (req) `((code . 200)
+                                        (headers . ((Content-type . "text/html")))
+                                        (content . ,index-html)))))))
+
+(λ (_) (bind 8000 dis))
+```
