@@ -86,3 +86,38 @@
 
 (λ (_) (bind 8000 dis))
 ```
+
+### POST example
+
+```scheme
+(import
+ (robusta server)
+ (prefix (robusta dispatcher) D/)
+ (prefix (robusta encoding html) html/))
+
+(define dispatcher
+  (D/dispatcher
+   `(("/" . ,(λ (req)
+               (let* ((M (cdr (assq 'method req)))
+                      (n (if (eqv? M 'GET)
+                             0
+                             (string->number (cdr (assq 'n (cdr (assq 'post-data req))))))))
+                 `((code . 200)
+                   (headers . ((Content-type . "text/html")))
+                   (content
+                    . ,(html/encode
+                        `(body
+                          (p "n: " ,n)
+                          ((form (method . "POST"))
+                           ((input (type . "hidden")
+                                   (name . "n")
+                                   (value . ,(number->string (+ n 1)))))
+                           (button "+"))
+                          ((form (method . "POST"))
+                           ((input (type . "hidden")
+                                   (name . "n")
+                                   (value . ,(number->string (- n 1)))))
+                           (button "-"))))))))))))
+
+(λ (_) (bind 6969 dispatcher))
+```

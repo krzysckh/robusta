@@ -90,7 +90,7 @@ this library implements a basic http server
          (caller (lambda (v)
                    (let ((current (v)))
                      ;; (print (list "in caller: " current))
-                     ;; (thread
+                     (thread
                        (string->symbol
                          (string-append
                            "thr-"
@@ -99,6 +99,6 @@ this library implements a basic http server
                          (catch-signals (list sigpipe))
                          (set-signal-action signal-handler/ignore)
                          (f (c->request (car current))))
-                       ;; ) ;; this parentheses is spread like that to allow easy debugging
+                       ) ;; this parentheses is spread like that to allow easy debugging
                      (caller (cdr current))))))
         (caller clients)))))
