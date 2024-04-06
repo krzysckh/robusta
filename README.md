@@ -1,4 +1,4 @@
-## web framework for owl lisp.
+## robusta
 
 <img src="https://raw.githubusercontent.com/krzysckh/robusta/master/doc/robusta-man.jpg" align="right" width="300px">
 
