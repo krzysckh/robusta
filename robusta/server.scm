@@ -98,7 +98,10 @@ this library implements a basic http server
                        (begin
                          (catch-signals (list sigpipe))
                          (set-signal-action signal-handler/ignore)
-                         (f (c->request (car current))))
+                         (let ((r (c->request (car current))))
+                           ((try (λ () (f r) (λ () 0))
+                                 (λ () (let ((s (cdr (assq 'send r))))
+                                         (s 501 '((Content-type . "text/html")) "501 internal server error")))))))
                        ) ;; this parentheses is spread like that to allow easy debugging
                      (caller (cdr current))))))
         (caller clients)))))

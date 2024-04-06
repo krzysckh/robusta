@@ -48,13 +48,13 @@
                   (label "submit a name: ")
                   ((input (type . "text") (name . "uname")))
                   (button "OK"))
-
                  ))))))))))
 
 (define static-folder "static/")
 (define dispatcher
   (robusta/dispatcher
    `(("/" . ,index)
+     ("/internal-server-error" . ,(λ (req) (substring "" 0 100)))
      ("m/static\\/.*/" . ,(λ (req) (robusta/static-dispatcher static-folder req)))
      ("/static/" . ,(λ (req) (robusta/static-index static-folder req))))))
 
