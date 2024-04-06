@@ -56,19 +56,12 @@ it's nicely packaged inside of `(robusta dispatcher)`
             (data (get-raw-post-data l)))
         (cond
          ((string=? content-type "application/x-www-form-urlencoded")
-          (let ((things ((string->regex "c/&/") data)))
-            (map (λ (s)
-                   (let* ((vs ((string->regex "c/=/") s))
-                          (k (car vs))
-                          (v (cadr vs)))
-                     (cons k (url/decode v))))
-                 things)))
+          (url/decode-form data))
          (else
           `(error . ,(string-append "content-type " content-type "unsupported"))))))
 
-
     (define (parse l)
-      (let* ((L ((string->regex "c/ /") (car l)))
+      (let* ((L ((string->regex "c/ /") (fuckbr (car l))))
              (method   (string->symbol (list-ref L 0)))
              (path     (list-ref L 1))
              (protocol (list-ref L 2)))
