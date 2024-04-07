@@ -1,30 +1,35 @@
-(import (prefix (robusta server) robusta/))
-(import (prefix (robusta dispatcher) robusta/))
-(import (prefix (robusta encoding html) html/))
-(import (only (robusta server) ->string))
+;; -*- mode: scheme; compile-command: "ol -r example.scm" -*-
 
-(import (prefix (robusta encoding json) json/))
+(import
+ (prefix (robusta server) robusta/)
+ (prefix (robusta dispatcher) robusta/)
+ (prefix (robusta encoding html) html/)
+ (prefix (robusta encoding json) json/)
+ (prefix (robusta db tsv) tsv/)
+ (prefix (owl sys) sys/)
+ (owl digest))
 
-(import (prefix (owl sys) sys/))
+(define (self s) s)
+
+(define schema
+  `((uname  ,string? ,self ,self)
+    (passwd ,string? ,self ,self)))
+
+(define th (tsv/open "db.tsv" schema))
 
 (define (index-do-post request)
   (let* ((pd (cdr (assq 'post-data request)))
-         (name (cdr (assq 'uname pd)))
-         (f (open-output-file "/tmp/last")))
-    (print-to f name)
-    (sys/close f))
-  `((code . 302)
-    (headers . ((Content-type . "text/html")
-                (location . "/")))
-    (content . ,(html/encode
-                 `(html
-                   (head)
-                   (body "302 found"))))))
-
-(define (get-last)
-  (if (sys/file? "/tmp/last")
-      (car (force-ll (lines (open-input-file "/tmp/last"))))
-      "NONE"))
+         (uname (cdr (assq 'uname pd)))
+         (passwd (cdr (assq 'uname pd))))
+    (tsv/insert-into th (list uname (sha256 passwd)))
+    (tsv/save th)
+    `((code . 302)
+      (headers . ((Content-type . "text/html")
+                  (location . "/")))
+      (content . ,(html/encode
+                   `(html
+                     (head)
+                     (body "302 found")))))))
 
 (define (index request)
   (let ((method (cdr (assq 'method request))))
@@ -43,20 +48,29 @@
                 ((link (rel . "stylesheet") (href . "https://pub.krzysckh.org/pico.css"))))
                (body
                 ((main (class . "container"))
-                 (p "Last submitted name: "  ,(get-last))
-                 ((form (method . "POST"))
-                  (label "submit a name: ")
-                  ((input (type . "text") (name . "uname")))
-                  (button "OK"))
+                 (fieldset
+                  (legend "Add user")
+                  ((form (method . "POST"))
+                   ((input (type . "text") (name . "uname") (placeholder . "username")))
+                   (br)
+                   ((input (type . "password") (name . "passwd") (placeholder . "password")))
+                   (button "add user")))
+                 (table
+                  ,(append
+                    '(tr (th "Username") (th "sha256'd password"))
+                    (map (λ (l)
+                           (list
+                            'tr
+                            (append '(td) (list (list-ref l 0)))
+                            (append '(td) (list (list-ref l 1)))))
+                         (tsv/get-all th))))
+
                  ))))))))))
 
 (define static-folder "static/")
 (define dispatcher
   (robusta/dispatcher
    `(("/" . ,index)
-     ("/internal-server-error" . ,(λ (req) (substring "" 0 100)))
-     ("m/static\\/.*/" . ,(λ (req) (robusta/static-dispatcher static-folder req)))
-     ("/static/" . ,(λ (req) (robusta/static-index static-folder req))))))
-
+     ("/internal-server-error" . ,(λ (req) (substring "" 0 100))))))
 
 (λ (args) (robusta/bind 6969 dispatcher))

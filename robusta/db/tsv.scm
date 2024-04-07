@@ -138,7 +138,8 @@ and saves it only on `(save)` and `(close)` calls.
 
     (define (get-all th)
       (lets ((chk v F serialize ds cs (getvs th)))
-        (v)))
+        (let ((vs (v)))
+          (if vs vs '()))))
 
     (define (get-coln columns colsym acc)
       (cond
