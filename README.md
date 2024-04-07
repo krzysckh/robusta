@@ -11,7 +11,8 @@ Robusta consists of:
 * `(robusta mime)` - builtin MIME table,
 * `(robusta encoding json)` - json encoder and decoder *(very slow)*,
 * `(robusta encoding html)` - html encoder,
-* `(robusta encoding url)` - decoder for urlencoded strings
+* `(robusta encoding url)` - decoder for urlencoded strings,
+* `(robusta db tsv)` - a ghetto DBMS for tsv files
 
 ## how does it look like?
 
