@@ -40,7 +40,7 @@
                (head
                 ((meta (name . "viewport") (content . "width=device-width, initial-scale=1")))
                 ((meta (name . "color-scheme") (content . "light dark")))
-                ((link (rel . "stylesheet") (href . "static/pico.css"))))
+                ((link (rel . "stylesheet") (href . "https://pub.krzysckh.org/pico.css"))))
                (body
                 ((main (class . "container"))
                  (p "Last submitted name: "  ,(get-last))

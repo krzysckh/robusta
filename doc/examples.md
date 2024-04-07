@@ -121,3 +121,36 @@
 
 (λ (_) (bind 6969 dispatcher))
 ```
+
+### tsv database
+
+```scheme
+(import
+ (prefix (robusta db tsv) tsv/)
+ (prefix (owl sys) sys/))
+
+(define (self s) s)
+(define dbname "db.tsv")
+
+(define schema
+;;   col-name  type-pred  thing->string  string->thing
+  `((uname      ,string? ,self           ,self)
+    (passwd     ,string? ,self           ,self)
+    (secret-num ,number? ,number->string ,string->number)))
+
+(when (sys/file? dbname)
+  (sys/unlink dbname))
+
+;; th = tsv handle
+(define th (tsv/open "db.tsv" schema))
+
+(tsv/insert-into th '("admin" "zaq1@WSX" 10))
+(tsv/insert-into th '("user0" "helloworld" 120))
+
+(print (tsv/filter-by th (λ (u p s) (= s 120))))
+(print (tsv/get-column th 'passwd))
+(tsv/delete-from th (λ (u p s) (string-ci=? u "USER0")))
+(print (tsv/get-all th))
+
+(tsv/close th)
+```
