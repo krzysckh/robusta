@@ -17,19 +17,43 @@
 
 (define th (tsv/open "db.tsv" schema))
 
+(define (gen b)
+  (html/encode
+   `(html
+     (head
+      ((meta (name . "viewport") (content . "width=device-width, initial-scale=1")))
+      ((meta (name . "color-scheme") (content . "light dark")))
+      ((link (rel . "stylesheet") (href . "https://pub.krzysckh.org/pico.css"))))
+     (body
+      ,(append
+        '((main (class . "container")))
+        b)))))
+
+(define (cannot-create)
+  `((code . 200)
+    (headers . ((Content-type . "text/html")
+                (location . "/")))
+    (content . ,(gen
+                 `((p "user with this username already exists")
+                   (p "redirecting " ((a (href . "/")) "back") "in 3 seconds")
+                   (script "setTimeout(() => { window.location.href = '/'; }, 3000)"))))))
+
 (define (index-do-post request)
   (let* ((pd (cdr (assq 'post-data request)))
          (uname (cdr (assq 'uname pd)))
-         (passwd (cdr (assq 'uname pd))))
-    (tsv/insert-into th (list uname (sha256 passwd)))
-    (tsv/save th)
-    `((code . 302)
-      (headers . ((Content-type . "text/html")
-                  (location . "/")))
-      (content . ,(html/encode
-                   `(html
-                     (head)
-                     (body "302 found")))))))
+         (passwd (cdr (assq 'passwd pd))))
+    (if (not (null? (tsv/filter-by th (λ (u p) (string-ci=? u uname)))))
+        (cannot-create)
+        (begin
+          (tsv/insert-into th (list uname (sha256 passwd)))
+          (tsv/save th)
+          `((code . 302)
+            (headers . ((Content-type . "text/html")
+                        (location . "/")))
+            (content . ,(html/encode
+                         `(html
+                           (head)
+                           (body "302 found")))))))))
 
 (define (index request)
   (let ((method (cdr (assq 'method request))))
@@ -40,37 +64,35 @@
       `((code . 200)
         (headers . ((Content-type . "text/html")))
         (content
-         . ,(html/encode
-             `(html
-               (head
-                ((meta (name . "viewport") (content . "width=device-width, initial-scale=1")))
-                ((meta (name . "color-scheme") (content . "light dark")))
-                ((link (rel . "stylesheet") (href . "https://pub.krzysckh.org/pico.css"))))
-               (body
-                ((main (class . "container"))
-                 (fieldset
-                  (legend "Add user")
-                  ((form (method . "POST"))
-                   ((input (type . "text") (name . "uname") (placeholder . "username")))
-                   (br)
-                   ((input (type . "password") (name . "passwd") (placeholder . "password")))
-                   (button "add user")))
-                 (table
-                  ,(append
-                    '(tr (th "Username") (th "sha256'd password"))
-                    (map (λ (l)
-                           (list
-                            'tr
-                            (append '(td) (list (list-ref l 0)))
-                            (append '(td) (list (list-ref l 1)))))
-                         (tsv/get-all th))))
-
-                 ))))))))))
+         . ,(gen
+             `((fieldset
+                (legend "Add user")
+                ((form (method . "POST"))
+                 ((input (type . "text") (name . "uname") (placeholder . "username")))
+                 (br)
+                 ((input (type . "password") (name . "passwd") (placeholder . "password")))
+                 (button "add user")))
+               (h3 "users:")
+               (table
+                ,(append
+                  '(tr (th "Username") (th "sha256'd password"))
+                  (map (λ (l)
+                         (list
+                          'tr
+                          (append '(td) (list (list-ref l 0)))
+                          (append '(td) (list (list-ref l 1)))))
+                       (tsv/get-all th))))
+               ))))))))
 
 (define static-folder "static/")
 (define dispatcher
   (robusta/dispatcher
    `(("/" . ,index)
-     ("/internal-server-error" . ,(λ (req) (substring "" 0 100))))))
+     ("/internal-server-error" . ,(λ (req) (substring "" 0 100)))
+     ("m/.*/" . ,(λ (req) (list
+                           '(code . 404)
+                           '(headers . ((Content-type . "text/html")))
+                           (cons 'content (gen '((h1 "404")
+                                                 (p "page not found"))))))))))
 
 (λ (args) (robusta/bind 6969 dispatcher))
