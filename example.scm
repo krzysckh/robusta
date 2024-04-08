@@ -35,8 +35,19 @@
                 (location . "/")))
     (content . ,(gen
                  `((p "user with this username already exists")
-                   (p "redirecting " ((a (href . "/")) "back") "in 3 seconds")
-                   (script "setTimeout(() => { window.location.href = '/'; }, 3000)"))))))
+                   (p "redirecting " ((a (href . "/")) "back") "in <span id=N>3</span> seconds")
+                   (script
+                    "
+const el = document.getElementById('N');
+function f(n) {
+  el.innerHTML = n;
+  if (n == 0)
+    window.location.href = '/';
+  else
+    setTimeout(() => f(n-1), 1000);
+}
+
+f(3)"))))))
 
 (define (index-do-post request)
   (let* ((pd (cdr (assq 'post-data request)))
@@ -47,13 +58,7 @@
         (begin
           (tsv/insert-into th (list uname (sha256 passwd)))
           (tsv/save th)
-          `((code . 302)
-            (headers . ((Content-type . "text/html")
-                        (location . "/")))
-            (content . ,(html/encode
-                         `(html
-                           (head)
-                           (body "302 found")))))))))
+          (robusta/redirect "/")))))
 
 (define (index request)
   (let ((method (cdr (assq 'method request))))

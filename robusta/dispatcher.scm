@@ -20,6 +20,7 @@ creating dispatchers
   (export
    static-dispatcher
    static-index
+   redirect
    dispatcher
    file->lst)
 
@@ -83,4 +84,13 @@ creating dispatchers
                        (headers (cdr (assq 'headers vals)))
                        (content (cdr (assq 'content vals))))
                   (send code headers content)))))))
-    ))
+
+    (define (redirect path . code)
+      `((code . ,(if (null? code) 302 (car code)))
+        (headers . ((Content-type . "text/html")
+                    (location . ,path)))
+        (content . ,(html/encode
+                     `(html
+                       (head)
+                       (body "302 found"))))))
+))
