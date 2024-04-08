@@ -1,8 +1,7 @@
 #| doc
 s-expressions → html
 
-this library was originally written for [chai](https://github.com/krzysckh/chai)
-
+this library was originally written for [chai](https://github.com/krzysckh/chai) but development will continue here.
 |#
 (define-library
   (robusta encoding html)
@@ -22,12 +21,13 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
     encode)
 
   (begin
-    ; https://github.com/jquery/jquery-migrate/issues/444
+    ;; https://github.com/jquery/jquery-migrate/issues/444
     (define self-closing-tags
       '(area base br col embed hr img input link meta param source track wbr))
 
+    ;; TODO: implement this
     (define (string->safe-html-string s)
-      s) ; TODO: implement this
+      s)
 
     (define (string->quote-quotes-string s)
       (str-replace s "\"" "\\\""))
