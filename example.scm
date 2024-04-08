@@ -29,12 +29,12 @@
         '((main (class . "container")))
         b)))))
 
-(define (cannot-create)
+(define (cannot-create why)
   `((code . 200)
     (headers . ((Content-type . "text/html")
                 (location . "/")))
     (content . ,(gen
-                 `((p "user with this username already exists")
+                 `((p "Cannot add user: " ,why " :(")
                    (p "redirecting " ((a (href . "/")) "back") "in <span id=N>3</span> seconds")
                    (script
                     "
@@ -53,12 +53,17 @@ f(3)"))))))
   (let* ((pd (cdr (assq 'post-data request)))
          (uname (cdr (assq 'uname pd)))
          (passwd (cdr (assq 'passwd pd))))
-    (if (not (null? (tsv/filter-by th (λ (u p) (string-ci=? u uname)))))
-        (cannot-create)
-        (begin
-          (tsv/insert-into th (list uname (sha256 passwd)))
-          (tsv/save th)
-          (robusta/redirect "/")))))
+    (cond
+     ((not (null? (tsv/filter-by th (λ (u p) (string-ci=? u uname)))))
+      (cannot-create "user with that name already exists"))
+     ((= (string-length uname) 0)
+      (cannot-create "empty username"))
+     ((= (string-length passwd) 0)
+      (cannot-create "empty passwd"))
+     (else
+      (tsv/insert-into th (list uname (sha256 passwd)))
+      (tsv/save th)
+      (robusta/redirect "/")))))
 
 (define (index request)
   (let ((method (cdr (assq 'method request))))
