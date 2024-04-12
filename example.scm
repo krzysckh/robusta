@@ -7,6 +7,7 @@
  (prefix (robusta encoding json) json/)
  (prefix (robusta db tsv) tsv/)
  (prefix (owl sys) sys/)
+ (owl thread)
  (owl digest))
 
 (define (self s) s)
@@ -35,7 +36,8 @@
                 (location . "/")))
     (content . ,(gen
                  `((p "Cannot add user: " ,why " :(")
-                   (p "redirecting " ((a (href . "/")) "back") "in <span id=N>3</span> seconds")
+                   (p "redirecting " ((a (href . "/")) "back") "in "
+                      ((span (id . "N"))) "seconds")
                    (script
                     "
 const el = document.getElementById('N');
@@ -105,4 +107,19 @@ f(3)"))))))
                            (cons 'content (gen '((h1 "404")
                                                  (p "page not found"))))))))))
 
-(λ (args) (robusta/bind 6969 dispatcher))
+(define (repl)
+  (system-print "> ")
+  (let ((s (read stdin)))
+    (cond
+     ((or (eqv? s 'exit) (eqv? s 'stop))
+      (catch-thread "main-server-thread")
+      (exit-owl 0))
+     (else
+      (print (eval s *toplevel*)))))
+  ((try repl repl)))
+
+(λ (args)
+  (thread
+   "main-server-thread"
+   (robusta/bind 6969 dispatcher))
+  (repl))
