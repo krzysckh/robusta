@@ -27,6 +27,7 @@ and saves it only on `(save)` and `(close)` calls.
 
   (import
    (owl toplevel)
+   (owl eval)
    (owl lazy)
    (owl variable)
    (prefix (owl sys) sys/))
@@ -155,13 +156,15 @@ and saves it only on `(save)` and `(close)` calls.
             (map (λ (v) (list-ref v n)) (get-all th))
             (error "(robusta db tsv)" "no-such-column"))))
 
-    ;; TODO: apply ma implementation-restriction dla dużych list iirc
+    (define (unrestricted-apply pred args)
+      (exported-eval (append (list pred) args) *toplevel*))
+
     (define (filter-by th pred)
       (lets ((chk v F serialize ds columns (getvs th)))
-        (filter (λ (l) (apply pred l)) (get-all th))))
+        (filter (λ (l) (unrestricted-apply pred l)) (get-all th))))
 
     (define (delete-from th pred)
       (lets ((chk v F serialize ds columns (getvs th)))
-        (let ((kept (filter (λ (l) (not (apply pred l))) (get-all th))))
+        (let ((kept (filter (λ (l) (not (unrestricted-apply pred l))) (get-all th))))
           (v kept))))
     ))
