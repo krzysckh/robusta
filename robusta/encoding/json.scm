@@ -264,6 +264,7 @@ me me likey accumulators
                  (string-append "{" O "}"))
                )))
         (cond
+         ((eqv? v 'null) "null")
          ((object? v) (encode-object v))
          ((list? v) (encode-list v))
          ((number? v) (number->string v))
