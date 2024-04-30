@@ -248,15 +248,17 @@ me me likey accumulators
     (define (encode v)
       (let ((encode-list
              (λ (lst)
-               (let* ((l (apply
+               (let* ((l (fold
                           string-append
+                          ""
                           (map (λ (x) (string-append (encode x) "," )) lst)))
                       (L (substring l 0 (- (string-length l) 1))))
                  (string-append "[" L "]"))))
             (encode-object
              (λ (obj)
-               (let* ((o (apply
+               (let* ((o (fold
                           string-append
+                          ""
                           (map (λ (x) (string-append
                                        (encode (->string (car x)))
                                        ":" (encode (cdr x)) ",")) obj)))
