@@ -11,10 +11,6 @@ it's nicely packaged inside of `(robusta dispatcher)`
   (import
     (owl toplevel)
     (owl regex)
-    (owl io)
-    (owl syscall)
-    (owl time)
-    (owl lazy)
     (prefix (owl sys) sys/)
     (prefix (robusta encoding url) url/)
     (scheme base))

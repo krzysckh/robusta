@@ -7,15 +7,8 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
   (robusta encoding html)
 
   (import
-    (owl core)
-    (owl syscall)
-    (owl list)
-    (owl list-extra)
-    (owl io)
-    (owl string)
-    (scheme base)
-
-    (only (robusta server) ->string))
+    (owl toplevel)
+    (only (robusta common) ->string))
 
   (export
     encode)

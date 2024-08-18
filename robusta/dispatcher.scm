@@ -8,14 +8,10 @@ creating dispatchers
   (import
    (owl toplevel)
    (owl regex)
-   (owl syscall)
-   (owl io)
-   (owl list)
-   (scheme base)
    (owl sys)
    (robusta mime)
    (prefix (robusta encoding html) html/)
-   (only (robusta server) ->string))
+   (only (robusta common) ->string))
 
   (export
    static-dispatcher

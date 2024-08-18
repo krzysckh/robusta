@@ -7,16 +7,13 @@ this library implements a basic http server
   (robusta server)
 
   (import
+    (owl toplevel)
     (owl proof)
-    (owl core)
-    (owl io)
     (owl sys)
     (owl syscall)
     (owl thread)
-    (owl list)
-    (owl time)
     (owl lazy)
-    (scheme base)
+    (robusta common)
     (prefix (robusta http) http/))
 
   (export
