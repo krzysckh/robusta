@@ -6,9 +6,11 @@ urlencode, urldecode
 
   (import
    (owl toplevel)
-   (owl unicode))
+   (owl unicode)
+   (only (robusta common) object?))
 
   (export
+   encode
    decode-form-nosym
    decode-form
    decode)
@@ -40,4 +42,26 @@ urlencode, urldecode
 
     ;; dont string->symbol the key
     (define (decode-form-nosym data)
-      (decode-form-f data (λ (x) x)))))
+      (decode-form-f data (λ (x) x)))
+
+    (define alphanumeric? (string->regex "m/[a-zA-Z0-9]/"))
+
+    (define (encode-thing v)
+      (fold string-append ""
+            (map (λ (c) (let ((s (string c)))
+                          (cond
+                           ((= #\space c) "+")
+                           ((alphanumeric? s) s)
+                           (else
+                            (string-append "%" (list->string (render-number c () 16)))))))
+                 (string->list (str v)))))
+
+    ;; (k . v) → k=v
+    (define (encode-pair p)
+      (string-append (encode-thing (car p)) "=" (encode-thing (cdr p))))
+
+    (define (encode l)
+      (let ((s (fold (λ (a b) (string-append a b "&")) "" (map encode-pair l))))
+        (substring s 0 (- (string-length s) 1))))
+
+    ))

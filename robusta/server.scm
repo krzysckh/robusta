@@ -20,8 +20,6 @@ this library implements a basic http server
     (prefix (robusta http) http/))
 
   (export
-    bool->string
-    ->string
     bind)
 
   (begin
@@ -29,24 +27,6 @@ this library implements a basic http server
       (if (writeable? port)
         (write-bytes port (if (string? lst) (append (string->list lst) '(10)) lst))
         (print "port not writeable")))
-
-    (define (bool->string v)
-      (if v "#t" "#f"))
-
-    (define (->string x)
-      (cond
-        ((list? x) (foldl string-append
-                          ""
-                          (map (λ (x) (string-append (->string x) " ")) x)))
-        ((pair? x) (string-append (->string (car x)) " "
-                                  (->string (cdr x)) " "))
-        ((number? x) (number->string x))
-        ((symbol? x) (symbol->string x))
-        ((boolean? x) (bool->string x))
-        ((char? x) (string x))
-        ((string? x) x)
-        (else
-          "")))
 
     (define (c->request c)
       (let* ((ip (car c))

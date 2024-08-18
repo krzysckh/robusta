@@ -33,7 +33,7 @@ me me likey accumulators
    (owl regex)
    (owl port)
    (scheme base)
-   (only (robusta server) ->string))
+   (robusta common))
 
   (export
    decode
@@ -237,13 +237,6 @@ me me likey accumulators
     ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
     (define (encode-string s)
       (string-append "\"" s "\""))
-
-    (define (object? lst)
-      (and (list? lst)
-           (not (has? (map pair? lst) #f))
-           (not (has? (map
-                       (λ (x) (or (symbol? (car x))
-                                  (string? (car x)))) lst) #f))))
 
     (define (encode v)
       (let ((encode-list

@@ -154,3 +154,14 @@
 
 (tsv/close th)
 ```
+
+### url encoding/decoding
+
+```scheme
+(import (prefix (robusta encoding url) url/))
+
+(define al '((a . b) (c . d) (e . 10) (f . "1") (g . #false)))
+
+;; everything str'd as types get stripped
+(print (string=? (str (url/decode-form (url/encode al))) (str al)))
+```
