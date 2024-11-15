@@ -235,8 +235,17 @@ me me likey accumulators
            "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
     ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
+    ;; (define unfuck-string (string->regex "s/\"/\\\"/g"))
+    ;; why doesnt this work
+    (define (unfuck-string l acc)
+      (cond
+       ((null? l) (list->string acc))
+       ((= #\" (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\"))))
+       (else
+        (unfuck-string (cdr l) (append acc (list (car l)))))))
+
     (define (encode-string s)
-      (string-append "\"" s "\""))
+      (string-append "\"" (unfuck-string (string->list s) ()) "\""))
 
     (define (encode v)
       (let ((encode-list
