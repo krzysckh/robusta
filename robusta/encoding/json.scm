@@ -234,6 +234,8 @@ me me likey accumulators
            (string-append "here → " (jsons->strerr s))
            "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
+    (define str-needs-unfucking? (string->regex "m/\"/"))
+
     ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
     ;; (define unfuck-string (string->regex "s/\"/\\\"/g"))
     ;; why doesnt this work
@@ -245,7 +247,10 @@ me me likey accumulators
         (unfuck-string (cdr l) (append acc (list (car l)))))))
 
     (define (encode-string s)
-      (string-append "\"" (unfuck-string (string->list s) ()) "\""))
+      (string-append
+       "\""
+       (if (str-needs-unfucking? s) (unfuck-string (string->list s) #n) s)
+       "\""))
 
     (define (encode v)
       (let ((encode-list
@@ -265,8 +270,8 @@ me me likey accumulators
                                        (encode (->string (car x)))
                                        ":" (encode (cdr x)) ",")) obj)))
                       (O (substring o 0 (- (string-length o) 1))))
-                 (string-append "{" O "}"))
-               )))
+                 (string-append "{" O "}"))))
+            (v (if (vector? v) (vector->list v) v)))
         (cond
          ((eqv? v 'null) "null")
          ((object? v) (encode-object v))
