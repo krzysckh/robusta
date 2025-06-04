@@ -58,9 +58,9 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
                (cond
                 ((number? x) (number->string x))
                 ((string? x) (string->safe-html-string x))
-                ((list? x) (encode x))
+                ((list? x) (encode* x self-closing-tags))
                 (else
-                 (encode (->string x)))))
+                 (encode* (->string x) self-closing-tags))))
              (cdr l))
             "")
 
