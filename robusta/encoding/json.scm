@@ -27,15 +27,7 @@ me me likey accumulators
   (robusta encoding json)
 
   (import
-   (owl eval)
-   (owl core)
-   (owl syscall)
-   (owl io)
-   (owl list)
-   (owl list-extra)
-   (owl regex)
-   (owl port)
-   (scheme base)
+   (owl toplevel)
    (robusta common))
 
   (export
@@ -82,7 +74,7 @@ me me likey accumulators
     ;; s acc → (parsed-seq next n)
     (define (parse-escape s acc)
       (let ((fc (car (string->list s))))
-        (cond 
+        (cond
          ((and (eq? fc #\\) (null? acc)) (parse-escape (+s s) acc))
          ((eq? fc #\\) `("\\" ,(+s s) 2))
          ((eq? fc #\") `("\"" ,(+s s) 2))
@@ -237,24 +229,21 @@ me me likey accumulators
            (string-append "here → " (jsons->strerr s))
            "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
-    (define str-needs-unfucking? (string->regex "m/[\"\n]/"))
+    ;; (define str-needs-unfucking? (λ _ #t))
 
-    ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
-    ;; (define unfuck-string (string->regex "s/\"/\\\"/g"))
-    ;; why doesnt this work
-    (define (unfuck-string l acc)
-      (cond
-       ((null? l) (list->string acc))
-       ((= #\" (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\"))))
-       ((= #\newline (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\n))))
-       (else
-        (unfuck-string (cdr l) (append acc (list (car l)))))))
+    ;; ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
+    ;; ;; (define unfuck-string (string->regex "s/\"/\\\"/g"))
+    ;; ;; why doesnt this work
+    ;; (define (unfuck-string l acc)
+    ;;   (s
+    ;;   (cond
+    ;;    ((null? l) (list->string acc))
+    ;;    ((= #\" (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\"))))
+    ;;    ((= #\newline (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\n))))
+    ;;    (else
+    ;;     (unfuck-string (cdr l) (append acc (list (car l)))))))
 
-    (define (encode-string s)
-      (string-append
-       "\""
-       (if (str-needs-unfucking? s) (unfuck-string (string->list s) #n) s)
-       "\""))
+    (define encode-string str*)
 
     (define (encode v)
       (let ((encode-list
