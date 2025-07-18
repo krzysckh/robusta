@@ -36,5 +36,6 @@ common functions
        (list? lst)
        (all pair? lst)
        (all (λ (x) (or (symbol? (car x)) (string? (car x)))) lst)
-       (all (B not pair?) (map cdr lst))))
+       ))
+       ;; (all (B not pair?) (map cdr lst))))
     ))
