@@ -20,6 +20,9 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
 
 me me likey accumulators
 |#
+
+;; THIS LIBRARY IS SO SLOW AND SUCKS DICKS !!!!
+;; I WILL REWRITE IT I PROMISE
 (define-library
   (robusta encoding json)
 
@@ -234,7 +237,7 @@ me me likey accumulators
            (string-append "here → " (jsons->strerr s))
            "expected: [ | { | [0-9]+ | \" | true | false | null")))))
 
-    (define str-needs-unfucking? (string->regex "m/\"/"))
+    (define str-needs-unfucking? (string->regex "m/[\"\n]/"))
 
     ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
     ;; (define unfuck-string (string->regex "s/\"/\\\"/g"))
@@ -243,6 +246,7 @@ me me likey accumulators
       (cond
        ((null? l) (list->string acc))
        ((= #\" (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\"))))
+       ((= #\newline (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\n))))
        (else
         (unfuck-string (cdr l) (append acc (list (car l)))))))
 
