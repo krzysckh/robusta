@@ -5,14 +5,26 @@ common functions
   (robusta common)
 
   (import
-   (owl toplevel))
+   (owl toplevel)
+   (prefix (owl parse) get-))
 
   (export
-    bool->string
-    ->string
-    object?)
+   flatten
+   hex?
+   get-single-hex
+   bytes->number
+   bool->string
+   ->string
+   object?)
 
   (begin
+    (define (flatten l)
+      (cond
+       ((null? l) #n)
+       ((pair? (car* l)) (append (flatten (car l)) (flatten (cdr l))))
+       ((pair? l) (cons (flatten (car l)) (flatten (cdr l))))
+       (else l)))
+
     (define (bool->string v)
       (if v "#t" "#f"))
 
@@ -38,4 +50,19 @@ common functions
        (all (λ (x) (or (symbol? (car x)) (string? (car x)))) lst)
        ))
        ;; (all (B not pair?) (map cdr lst))))
+
+
+    (define hex? (string->regex "m/[0-9a-fA-F]/"))
+
+    (define get-single-hex
+      (get-byte-if (λ (c) (hex? (string c)))))
+
+    ;; from (owl sexp)
+    (define (bytes->number digits base)
+      (fold
+       (λ (n digit)
+         (+ (* n base)
+            (fxand (if (lesser? #\9 digit) (lets ((d _ (fx- digit 7))) d) digit) 15)))
+       0 digits))
+
     ))

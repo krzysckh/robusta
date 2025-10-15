@@ -8,7 +8,7 @@ urlencode, urldecode
    (owl toplevel)
    (owl unicode)
    (prefix (owl parse) get-)
-   (only (robusta common) object?))
+   (robusta common))
 
   (export
    encode
@@ -17,14 +17,6 @@ urlencode, urldecode
    decode)
 
   (begin
-    ;; from (owl sexp)
-    (define (bytes->number digits base)
-      (fold
-       (λ (n digit)
-         (+ (* n base)
-            (fxand (if (lesser? #\9 digit) (lets ((d _ (fx- digit 7))) d) digit) 15)))
-       0 digits))
-
     ;; (define (decode-lst l acc)
     ;;   (print (len l))
     ;;   (cond
@@ -34,11 +26,6 @@ urlencode, urldecode
     ;;    ;;  (decode-lst (cdddr l) (append acc (list (read (string #\# #\x (cadr l) (caddr l)))))))
     ;;    (else
     ;;     (decode-lst (cdr l) (append acc (list (car l)))))))
-
-    (define hex? (string->regex "m/[0-9a-fA-F]/"))
-
-    (define get-single-hex
-      (get-byte-if (λ (c) (hex? (string c)))))
 
     (define get-hex
       (get-parses

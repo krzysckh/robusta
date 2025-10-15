@@ -3,31 +3,19 @@
 
 this loosely implements the ECMA-404 standard for json encoding and decoding
 
-it WILL accept broken json, and decode it correctly or incorrectly
-depending on the mood, but it *should* decode *proper* json correctly.
-
-features, not bugs, include, but are not limited to:
-  - `[1,2,3 4]` → `(1 2 3 4)`
-  - `[,,,,,]`   → `()`
-
 it can also `encode` json, where objects are defined like this:
 `'((a . b) (c . d))`, so a list with key-value pairs.
 
-be warned that this implementation is **really** slow. like **proper** slow slow.
-i may fix that in the future, but for now it is what it is.
-
 https://ecma-international.org/publications-and-standards/standards/ecma-404/
-
-me me likey accumulators
 |#
-
-;; THIS LIBRARY IS SO SLOW AND SUCKS DICKS !!!!
-;; I WILL REWRITE IT I PROMISE
 (define-library
   (robusta encoding json)
 
   (import
    (owl toplevel)
+   (owl unicode)
+   (owl proof)
+   (prefix (owl parse) get-)
    (robusta common))
 
   (export
@@ -35,213 +23,136 @@ me me likey accumulators
    encode)
 
   (begin
-    ;; i don't think json-syntax-error should be fatal
-    (define (json-syntax-error s . l)
-      (print-to stderr (->string (list "json-syntax-error: " s)))
-      (when (not (eqv? l '()))
-        (print-to stderr "  additional-information:")
-        (for-each
-         (λ (s) (print-to stderr (string-append "    " (->string s)))) l))
-      #f)
+    (define get-whitespace
+      (get-byte-if (λ (c) (has? '(#x09 #x0a #x0d #x20) c))))
 
-    ;; this expression is used too often so i just...
-    (define (+s s) (substring s 1 (string-length s)))
+    (define get-ws+
+      (get-plus get-whitespace))
 
-    ;; json string → string that will fit on a string for error reporting
-    (define (jsons->strerr s)
-      (cond
-       ((> (string-length s) 16) (substring s 0 16))
-       (else s)))
+    (define get-ws*
+      (get-star get-whitespace))
 
-    (define (digit? chr)
-      (let ((c (cond
-                ((string? chr) (substring chr 0 1))
-                ((char? chr) (string chr))
-                ((number? chr) (number->string chr))
-                (else
-                 (error "digit?" "unexpected type")))))
-        ((string->regex "m/^[0-9]/") c)))
+    (define get-digit
+      (get-byte-if (λ (c) (and (>= c #\0) (<= c #\9)))))
 
-                                        ; TODO: do it as ECMA-404's fig. 4
-    ;; s "" → string(n)
-    (define (get-number s acc)
-      (cond
-       ((digit? s)
-        (get-number (+s s) (string-append acc (substring s 0 1))))
-       (else
-        acc)))
+    (define get-number
+      (get-parses
+       ((sign  (get-maybe (get-imm #\-) #\+))
+        (a     (get-plus get-digit))
+        (point (get-maybe
+                (get-seq
+                 (get-imm #\.)
+                 (get-plus get-digit))
+                (list #\. #\0)))
+        (E     (get-maybe
+                (get-seq
+                 (get-byte-if (λ (c) (or (= c #\e) (= c #\E))))
+                 (get-seq
+                  (get-maybe (get-byte-if (λ (c) (or (= c #\-) (= c #\+)))) #\+)
+                  (get-plus get-digit)))
+                (list #\e #\+ 0))))
+       (let* ((base  (bytes->number a 10))
+              (point* (bytes->number (cdr point) 10))
+              (e      (* (if (= (cadr E) #\+) 1 -1) (bytes->number (cddr E) 10))))
+         (* (if (= sign #\+) 1 -1) (+ base (/ point* (expt 10 (len (cdr point))))) (expt 10 e)))))
 
-    ;; s acc → (parsed-seq next n)
-    (define (parse-escape s acc)
-      (let ((fc (car (string->list s))))
-        (cond
-         ((and (eq? fc #\\) (null? acc)) (parse-escape (+s s) acc))
-         ((eq? fc #\\) `("\\" ,(+s s) 2))
-         ((eq? fc #\") `("\"" ,(+s s) 2))
-         ((eq? fc #\/) `("/" ,(+s s) 2))
-         ((eq? fc #\f) (json-syntax-error "not-implemented-error"
-                                          "backslash f"))
-         ((eq? fc #\n) `("\n" ,(+s s) 2))
-         ((eq? fc #\r) `("\r" ,(+s s) 2))
-         ((eq? fc #\t) `("\t" ,(+s s) 2))
-         ((eq? fc #\u) (json-syntax-error "not-implemented-error"
-                                          "backslash u") `("" ,(+s s) 2))
-         (else
-          (json-syntax-error "syntax-error"
-                             "invalid escape"
-                             (jsons->strerr s))))))
+    (define (get-imm-then imm then)
+      (get-parses
+       ((_ (get-imm imm)))
+       then))
 
-    ;; s "" 0 → (parsed-s skip)
-    ;; ECMA-404's fig. 5
-    (define (get-string s acc skip-n)
-      (let ((fc (car* (string->list s))))
-        (cond
-         ((null? fc) (json-syntax-error
-                      "expected '\"'"
-                      "got null?"
-                      (string-append "here →" (jsons->strerr s))))
-         ((eq? fc #\") `(,acc . ,(+ skip-n 1)))
-         ((eq? fc #\\)
-          (let* ((l (parse-escape s '()))
-                 (S (list-ref l 0))
-                 (next (list-ref l 1))
-                 (n (list-ref l 2)))
-            (get-string next (string-append acc S) (+ skip-n n))))
-         (else
-          (get-string (+s s) (string-append acc (string fc)) (+ skip-n 1))))))
+    (define get-escaped
+      (get-parses
+       ((_ (get-imm #\\))
+        (v (get-one-of
+            (get-imm-then #\" #\")
+            (get-imm-then #\\ #\\)
+            (get-imm-then #\/ #\/)
+            (get-imm-then #\b #x08)
+            (get-imm-then #\f #x0c)
+            (get-imm-then #\n #x0a)
+            (get-imm-then #\r #x0d)
+            (get-imm-then #\t #x09)
+            (get-parses
+             ((_ (get-imm #\u))
+              (a get-single-hex)
+              (b get-single-hex)
+              (c get-single-hex)
+              (d get-single-hex))
+             (print "got escaped " (list a b c d))
+             (utf8-encode (list (bytes->number (list a b c d) 16)))))))
+       v))
 
-    ;; s "" → (string(tok) | #f . skip | #f)
-    (define (get-literal-tok s acc)
-      (let ((fc (car (string->list s))))
-        (cond
-         ((or (eqv? fc #\])
-              (eqv? fc #\})
-              (eqv? fc #\,)
-              (eqv? fc #\space))
-          (if (or (string=? acc "true")
-                  (string=? acc "false")
-                  (string=? acc "null"))
-              `(,acc . ,(string-length acc))
-              `(#f . #f)))
-         (else
-          (get-literal-tok (+s s)
-                           (string-append acc (substring s 0 1)))))))
+    (define get-string
+      (get-parses
+       ((_ get-ws*)
+        (_    (get-imm #\"))
+        (data (get-star
+               (get-either
+                get-escaped
+                (get-byte-if (B not (C = #\"))))))
+        (_    (get-imm #\"))
+        (_    get-ws*))
+       (list->string (utf8-decode (flatten data)))))
 
-    (define (get-array-object-skip s T)
-      (letrec* ((S (if (eqv? T 'array) "[" "{"))
-                (E (if (eqv? T 'array) "]" "}"))
-                (f (lambda (s acc bad-acc)
-                     (cond
-                      ((and (string=? (substring s 0 1) E)
-                            (<= bad-acc 1)) (+ acc 1))
-                      ((string=? (substring s 0 1) E)
-                       (f (+s s)
-                          (+ 1 acc)
-                          (- bad-acc 1)))
-                      ((string=? (substring s 0 1) S)
-                       (f (+s s)
-                          (+ 1 acc)
-                          (+ 1 bad-acc)))
-                      (else
-                       (f (+s s)
-                          (+ 1 acc)
-                          bad-acc))))))
-        (substring s (f s 0 0) (string-length s))))
+    (define (get-kv get-value)
+      (get-parses
+       ((k get-string)
+        (_ (get-imm #\:))
+        (v get-value))
+       (cons k v)))
 
-    (define (next-token s)
-      (let ((fc (car (string->list s)))
-            (n-re (string->regex "m/^[0-9]+/")))
-        (cond
-         ((n-re s)
-          (substring s (string-length (get-number s "")) (string-length s)))
-         ((eq? fc #\") (substring
-                        s (cdr (get-string (+s s) "" 1)) (string-length s)))
-         ((eq? fc #\[) (get-array-object-skip s 'array))
-         ((eq? fc #\{) (get-array-object-skip s 'object))
-         ((eq? fc #\space) (next-token (+s s)))
-         ((car (get-literal-tok s ""))
-          (substring s (string-length (car (get-literal-tok s "")))
-                     (string-length s)))
-         (else
-          (+s s)))))
+    (define (get-kvs get-value)
+      (get-star
+       (get-either
+        (get-kv get-value)
+        (get-parses
+         ((p (get-kv get-value))
+          (_ (get-imm #\,)))
+         p))))
+
+    (define (get-object get-value)
+      (get-parses
+       ((_   (get-imm #\{))
+        (kvs (get-kvs get-value))
+        (_   (get-imm #\})))
+       kvs))
+
+    (define (get-array get-value)
+      (get-parses
+       ((_  (get-imm #\[))
+        (vs (get-star
+             (get-either
+              (get-parses
+               ((v get-value)
+                (_ (get-imm #\,)))
+               v)
+              get-value)))
+        (_  (get-imm #\])))
+       vs))
+
+    (define get-value
+      (let ((f (λ (self)
+                 (get-parses
+                  ((_ get-ws*)
+                   (v (get-one-of
+                       (get-object self)
+                       (get-array self)
+                       get-number
+                       get-string
+                       (get-word "true" #t)
+                       (get-word "false" #f)
+                       (get-word "null" #n)))
+                   (_ get-ws*))
+                  v))))
+        (letrec ((f* (λ (a b c d) ((f f*) a b c d))))
+          (f f*))))
+
+    (define parser
+      get-value)
 
     (define (decode s)
-      (letrec ((parse-array
-                (lambda (s acc)
-                  (let ((fc (car (string->list s))))
-                    (cond
-                     ((eqv? fc #\]) acc)
-                     ((or (eqv? fc #\space)
-                          (eqv? fc #\tab)
-                          (eqv? fc #\,))
-                      (parse-array (+s s) acc))
-                     (else
-                      (parse-array
-                       (next-token s) (append acc (list (decode s)))))))))
-               (parse-object
-                ;; key == expects value, adds to acc only when value given
-                ;; should be called as (parse-object s '() '()) teehee :33
-                (lambda (s acc key)
-                  (let ((fc (car (string->list s))))
-                    (cond
-                     ;; expects key | } | , | #\space
-                     ((eq? fc #\}) acc)
-                     ((or (eq? fc #\space) (eq? fc #\,))
-                      (parse-object (+s s) acc key))
-                     ((null? key)
-                      (let ((val (decode s)))
-                        (if (string? val)
-                            (parse-object (next-token s) acc val)
-                            (json-syntax-error
-                             "expected key as string?: "
-                             (string-append "got " (->string val))
-                             (string-append "here → " (jsons->strerr s))))))
-                     (else
-                      ;; expects value
-                      (cond
-                       ((or (eq? fc #\space) (eq? fc #\:))
-                        (parse-object (+s s)
-                                      acc key))
-                       (else
-                        (parse-object (next-token s)
-                                      (append
-                                       acc
-                                       (list (cons key (decode s))))
-                                      '()))))))))
-               (fc (car* (string->list s))))
-        (cond
-         ((eq? fc #\space) (decode (+s s)))
-         ((digit? fc) (string->number (get-number s "")))
-         ((eq? fc #\") (car (get-string (+s s) "" 0)))
-         ((eq? fc #\[) (parse-array (+s s) '()))
-         ((eq? fc #\{) (parse-object (+s s) '() '()))
-         ((car (get-literal-tok s ""))
-          (let* ((T (get-literal-tok s ""))
-                 (tok (car T))
-                 (skip (cdr T)))
-            (cond
-             ((string=? "true" tok) #t)
-             ((string=? "false" tok) #f)
-             ((string=? "null" tok) 'null))))
-         (else
-          (json-syntax-error
-           "invalid char:"
-           (string-append "here → " (jsons->strerr s))
-           "expected: [ | { | [0-9]+ | \" | true | false | null")))))
-
-    ;; (define str-needs-unfucking? (λ _ #t))
-
-    ;; ;; TODO: \\ \" \' \b \r \n \uxyz ECMA stuff
-    ;; ;; (define unfuck-string (string->regex "s/\"/\\\"/g"))
-    ;; ;; why doesnt this work
-    ;; (define (unfuck-string l acc)
-    ;;   (s
-    ;;   (cond
-    ;;    ((null? l) (list->string acc))
-    ;;    ((= #\" (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\"))))
-    ;;    ((= #\newline (car l)) (unfuck-string (cdr l) (append acc (list #\\ #\n))))
-    ;;    (else
-    ;;     (unfuck-string (cdr l) (append acc (list (car l)))))))
+      (get-parse parser (str-iter s) #f))
 
     (define encode-string str*)
 
@@ -276,6 +187,6 @@ me me likey accumulators
          ((eq? v #t) "true")
          ((eq? v #f) "false")
          (else
-          (json-syntax-error "unexpeced type: " v) "false"))
+          (error "unexpeced type: " v) "false"))
         ))
     ))
