@@ -31,14 +31,14 @@
         b)))))
 
 (define (cannot-create why)
-  `((code . 200)
-    (headers . ((Content-type . "text/html")
-                (location . "/")))
-    (content . ,(gen
-                 `((p "Cannot add user: " ,why " :(")
-                   (p "redirecting " ((a (href . "/")) "back") "in "
-                      ((span (id . "N"))) "seconds")
-                   (script
+  (robusta/response
+   code    => 200
+   headers => '((Content-type . "text/html") (location . "/"))
+   content => (gen
+               `((p "Cannot add user: " ,why " :(")
+                 (p "redirecting " ((a (href . "/")) "back") "in "
+                    ((span (id . "N"))) "seconds")
+                 (script
                     "
 const el = document.getElementById('N');
 function f(n) {
@@ -49,10 +49,10 @@ function f(n) {
     setTimeout(() => f(n-1), 1000);
 }
 
-f(3)"))))))
+f(3)")))))
 
 (define (index-do-post request)
-  (let* ((pd (cdr (assq 'post-data request)))
+  (let* ((pd (get request 'post-data #n))
          (uname (cdr (assq 'uname pd)))
          (passwd (cdr (assq 'passwd pd))))
     (cond
@@ -68,33 +68,33 @@ f(3)"))))))
       (robusta/redirect "/")))))
 
 (define (index request)
-  (let ((method (cdr (assq 'method request))))
+  (let ((method (get request 'method 'GET)))
     (cond
      ((eqv? method 'POST)
       (index-do-post request))
      (else
-      `((code . 200)
-        (headers . ((Content-type . "text/html")))
-        (content
-         . ,(gen
-             `((fieldset
-                (legend "Add user")
-                ((form (method . "POST"))
-                 ((input (type . "text") (name . "uname") (placeholder . "username")))
-                 (br)
-                 ((input (type . "password") (name . "passwd") (placeholder . "password")))
-                 (button "add user")))
-               (h3 "users:")
-               (table
-                ,(append
-                  '(tr (th "Username") (th "sha256'd password"))
-                  (map (λ (l)
-                         (list
-                          'tr
-                          (append '(td) (list (list-ref l 0)))
-                          (append '(td) (list (list-ref l 1)))))
-                       (tsv/get-all th))))
-               ))))))))
+      (robusta/response
+       code    => 200
+       headers => '((Content-type . "text/html"))
+       content => (gen
+                   `((fieldset
+                      (legend "Add user")
+                      ((form (method . "POST"))
+                       ((input (type . "text") (name . "uname") (placeholder . "username")))
+                       (br)
+                       ((input (type . "password") (name . "passwd") (placeholder . "password")))
+                       (button "add user")))
+                     (h3 "users:")
+                     (table
+                      ,(append
+                        '(tr (th "Username") (th "sha256'd password"))
+                        (map (λ (l)
+                               (list
+                                'tr
+                                (append '(td) (list (list-ref l 0)))
+                                (append '(td) (list (list-ref l 1)))))
+                             (tsv/get-all th))))
+                     )))))))
 
 (define static-folder "static/")
 (define dispatcher
@@ -121,5 +121,5 @@ f(3)"))))))
 (λ (args)
   (thread
    "main-server-thread"
-   (robusta/bind 6969 dispatcher))
+   (robusta/bind 8080 dispatcher))
   (repl))

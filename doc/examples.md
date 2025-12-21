@@ -2,40 +2,42 @@
 
 ### simple *hello* server without dispatchers
 ```scheme
-(import (prefix (robusta server) robusta/))
+(import (robusta server))
 
-(robusta/bind
+(bind
   8080
   (lambda (r)
-    (print r)
-    (let ((send (cdr (assq 'send r))))
-      (send 200 '((Content-type . "text/html")) "hello!"))))
+    (respond
+     r (response
+        code    => 200
+        content => "hello!"
+        headers => '((Content-type . "text/html"))))))
 ```
 
 ### simple server *with* dispatchers
 
 ```scheme
-(import (prefix (robusta server) robusta/))
-(import (prefix (robusta dispatcher) robusta/))
-(import (only (robusta server) ->string))
+(import
+ (robusta server)
+ (robusta dispatcher))
 
 (define (index request)
-  '((code . 200)
-    (headers . ((Content-type . "text/html")))
-    (content . "this is the index page")))
+  (response
+   code    => 200
+   headers => '((Content-type . "text/html"))
+   content => "this is the index page"))
 
 (define (about request)
-  `((code . 200)
-    (headers . ((Content-type . "text/html")))
-    (content . ,(->string
-                  (list "this is an about page<br>"
-                        "your request: " request)))))
+  (response
+   code => 200
+   headers => '((Content-type . "text/html"))
+   content => "this is an about page"))
 
-(define dispatcher (robusta/dispatcher
-                     `(("/" . ,index)
-                       ("/about" . ,about))))
+(define dispatcher (make-dispatcher
+                    "/"      => index
+                    "/about" => about))
 
-(robusta/bind 8080 dispatcher)
+(bind 8080 dispatcher)
 ```
 
 ### using (robusta encoding json)
@@ -52,16 +54,18 @@
 ### using (robusta encoding html)
 
 ```scheme
-(import (prefix (robusta server) robusta/))
-(import (prefix (robusta dispatcher) robusta/))
-(import (prefix (robusta encoding html) html/))
+(import
+ (prefix (robusta server) robusta/)
+ (prefix (robusta dispatcher) robusta/)
+ (prefix (robusta encoding html) html/))
 
 (define (idx request)
-  `((code . 200)
-    (headers . ((Content-type . "text/html")))
-    (content . ,(html/encode '(html (head) (body (p "this the only page")))))))
+  (robusta/response
+   code    => 200
+   headers => '((Content-type . "text/html"))
+   content => (html/encode '(html (head) (body (p "this the only page"))))))
 
-(robusta/bind 8080 (robusta/dispatcher `(("m/^.*$/" . ,idx))))
+(robusta/bind 8080 (robusta/make-dispatcher "m/^.*$/" => idx))
 ```
 
 ### static pages with an index dispatcher
@@ -78,13 +82,17 @@
      (head)
      (body "see the static pages" ((a (href . "static/")) "here")))))
 
-(define dis (dispatcher
-             `(("m/static(\\/.*)?/" . ,(λ (req) (static-dispatcher "static/" req)))
-               ("m/\\/?/" . ,(λ (req) `((code . 200)
-                                        (headers . ((Content-type . "text/html")))
-                                        (content . ,index-html)))))))
+(define static! (H static-dispatcher "static/"))
 
-(λ (_) (bind 8000 dis))
+(define dis (make-dispatcher
+             "m/static(\\/.*)?/" => static!
+             "m/\\/?/"           => (λ (req)
+                                      (response
+                                       code    => 200
+                                       headers => '((Content-type . "text/html"))
+                                       content => index-html))))
+
+(bind 8080 dis)
 ```
 
 ### POST example
@@ -96,30 +104,30 @@
  (prefix (robusta encoding html) html/))
 
 (define dispatcher
-  (D/dispatcher
-   `(("/" . ,(λ (req)
-               (let* ((M (cdr (assq 'method req)))
-                      (n (if (eqv? M 'GET)
-                             0
-                             (string->number (cdr (assq 'n (cdr (assq 'post-data req))))))))
-                 `((code . 200)
-                   (headers . ((Content-type . "text/html")))
-                   (content
-                    . ,(html/encode
-                        `(body
-                          (p "n: " ,n)
-                          ((form (method . "POST"))
-                           ((input (type . "hidden")
-                                   (name . "n")
-                                   (value . ,(number->string (+ n 1)))))
-                           (button "+"))
-                          ((form (method . "POST"))
-                           ((input (type . "hidden")
-                                   (name . "n")
-                                   (value . ,(number->string (- n 1)))))
-                           (button "-"))))))))))))
+  (D/make-dispatcher
+   "/" => (λ (req)
+            (let* ((M (get req 'method #f))
+                   (n (if (eqv? M 'GET)
+                          0
+                          (string->number (cdr (assq 'n (get req 'post-data #n)))))))
+              (response
+               code    => 200
+               headers => '((Content-type . "text/html"))
+               content => (html/encode
+                           `(body
+                             (p "n: " ,n)
+                             ((form (method . "POST"))
+                              ((input (type . "hidden")
+                                      (name . "n")
+                                      (value . ,(number->string (+ n 1)))))
+                              (button "+"))
+                             ((form (method . "POST"))
+                              ((input (type . "hidden")
+                                      (name . "n")
+                                      (value . ,(number->string (- n 1)))))
+                              (button "-")))))))))
 
-(λ (_) (bind 6969 dispatcher))
+(bind 8080 dispatcher)
 ```
 
 ### tsv database

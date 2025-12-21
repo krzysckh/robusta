@@ -16,7 +16,6 @@ it's nicely packaged inside of `(robusta dispatcher)`
     (scheme base))
 
   (export
-    parse
     parse-by-fd)
 
   (begin
@@ -37,40 +36,71 @@ it's nicely packaged inside of `(robusta dispatcher)`
               (fuckbr (cadr vs))
               (get-content-type (cdr l)))))))
 
-    (define (get-raw-post-data l)
-      (if (null? l)
-          ""
-          (let ((cur (fuckbr (car l))))
-            (cond
-             ((string=? cur "")
-              (foldl string-append "" (cdr l)))
-             (else
-              (get-raw-post-data (cdr l)))))))
+    ;; TODO: try N times to get a block sized content-length from fd instead of just once
+    ;; TODO: right now it's vulnerable to slow lorries
+    (define (get-post-data req l bs)
+      (if-lets ((hdrs (get req 'headers empty))
+                (content-type   (get hdrs 'content-type #f))
+                (content-length (get hdrs 'content-length #f)))
+        (let ((bytes (force-ll (ltake bs (string->number content-length)))))
+          (cond
+           ((string=? content-type "application/x-www-form-urlencoded")
+            (url/decode-form (list->string bytes)))
+           (else
+            bytes)))))
 
-    (define (get-post-data l)
-      (let ((content-type (get-content-type l))
-            (data (get-raw-post-data l)))
+    (define (lowercase s)
+      (string-map
+       (λ (c)
+         (if (and (>= c #\A) (<= c #\Z))
+             (+ c (- #\a #\A))
+             c))
+       s))
+
+    (define (lst->headers lst)
+      (list->ff
+       (map
+        (λ (s) (let ((l ((string->regex "c/: */") s)))
+                 (cons (string->symbol (lowercase (car l))) (cadr l))))
+        lst)))
+
+    (define (bs->line bs)
+      (let walk ((bs bs)
+                 (acc #n))
         (cond
-         ((string=? content-type "application/x-www-form-urlencoded")
-          (url/decode-form data))
+         ((function? bs) (walk (bs) acc))
+         ((pair? bs)
+          (cond
+           ((eq? (car bs) #\return)
+            (walk (cdr bs) acc))
+           ((eq? (car bs) #\newline)
+            (values (cdr bs) (reverse acc)))
+           (else
+            (walk (cdr bs) (cons (car bs) acc)))))
          (else
-          `(error . ,(string-append "content-type " content-type "unsupported"))))))
+          acc))))
+          ;; (error "no clue what is " bs)))))
 
-    (define (parse l)
-      (let* ((L ((string->regex "c/ /") (fuckbr (car l))))
-             (method   (string->symbol (list-ref L 0)))
-             (path     (list-ref L 1))
-             (protocol (list-ref L 2)))
-        (if (eqv? method 'POST)
-            `((method . ,method)
-              (path . ,path)
-              (protocol . ,protocol)
-              (post-data . ,(get-post-data l)))
-            `((method . ,method)
-              (path . ,path)
-              (protocol . ,protocol)))))
+    (define (fd->request-lines fd)
+      (let walk ((bs (port->byte-stream fd))
+                 (ls #n))
+        (lets ((bs l (bs->line bs)))
+          (if (null? l)
+              (values bs (reverse ls))
+              (walk bs (cons (list->string l) ls))))))
 
-    (define READ-MAX (<< 2 30)) ;; this sucks but is sane ig
     (define (parse-by-fd fd)
-      (parse ((string->regex "c/\n/") (list->string (bytevector->list (sys/read fd READ-MAX))))))
+      (lets ((bs l (fd->request-lines fd))
+             (L ((string->regex "c/ /") (fuckbr (car l))))
+             (method   (string->symbol (lref L 0)))
+             (path     (lref L 1))
+             (protocol (lref L 2)))
+        (let ((res (ff
+                    'headers  (lst->headers (cdr l))
+                    'method   method
+                    'path     path
+                    'protocol protocol)))
+          (if (eqv? method 'POST)
+              (put res 'post-data (get-post-data res l bs))
+              res))))
     ))
