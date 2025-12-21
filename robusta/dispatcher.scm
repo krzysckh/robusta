@@ -20,7 +20,7 @@ creating dispatchers
    static-index
    redirect
    dispatcher
-   file->lst)
+   )
 
   (begin
     (define (dispatch? path req)
@@ -29,11 +29,6 @@ creating dispatchers
               ((string->regex path) req)
               (string=? path req))
           (string=? path req)))
-
-    (define (file->lst f)
-      (let* ((p (open-input-file f))
-             (r (port->byte-stream p)))
-        (force-ll r)))
 
     (define (rpath-vs from request)
       (let* ((req-path (get request 'path 'bug))
@@ -64,7 +59,7 @@ creating dispatchers
           (response
            code    => 200
            headers => `((Accept-ranges . "bytes") (Content-type . ,(path->mime path)))
-           content => (file->lst (string-append from path)))))))
+           content => (file->list (string-append from path)))))))
 
     ;; TODO: fuck! path traversal
     (define (dispatcher lst)
