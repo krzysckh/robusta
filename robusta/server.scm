@@ -70,7 +70,10 @@ this library implements a basic http server
                (let ((r (c->request ip fd)))
                  (try-thunk
                   (λ () (f r))
-                  (λ () ((get r 'send 'bug) 501 '((Content-type . "text/html")) "501 internal server error"))
+                  (λ vs
+                    (respond r (response
+                                code    => 501
+                                content => (str "501 internal server error: " vs))))
                   (string->symbol (str "try-" (time-ns)))))))
             (loop)))))
 
