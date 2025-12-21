@@ -5,11 +5,11 @@
 Robusta is a set of almost-ready-to-use™ tools that can make writing web stuff <strike>even less</strike> enjoyable.
 
 Robusta consists of:
-* `(robusta server)` - simple async tcp listener,
+* `(robusta server)` - simple async http server,
 * `(robusta dispatcher)` - regex-based dispatchers for `(robusta server)`,
 * `(robusta http)` - parsing HTTP,
 * `(robusta mime)` - builtin MIME table,
-* `(robusta encoding json)` - json encoder and decoder *(very slow)*,
+* `(robusta encoding json)` - json encoder and decoder,
 * `(robusta encoding html)` - html encoder,
 * `(robusta encoding url)` - decoder for urlencoded strings,
 * `(robusta encoding base64)` - base64 [-d]
