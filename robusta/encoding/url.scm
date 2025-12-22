@@ -11,6 +11,7 @@ urlencode, urldecode
    (robusta common))
 
   (export
+   encode-thing
    encode
    decode-form-nosym
    decode-form
@@ -51,7 +52,7 @@ urlencode, urldecode
        ((k get-thing)
         (_ (get-imm #\=))
         (v get-thing))
-       (cons (list->string (utf8-decode k)) (list->string (utf8-decode v)))))
+       (cons (bytes->string k) (bytes->string v))))
 
     (define get-kv-pairs
       (get-plus
@@ -98,7 +99,7 @@ urlencode, urldecode
                            ((alphanumeric? s) s)
                            (else
                             (string-append "%" (list->string (render-number c () 16)))))))
-                 (string->list (str v)))))
+                 (string->bytes (str v)))))
 
     ;; (k . v) → k=v
     (define (encode-pair p)

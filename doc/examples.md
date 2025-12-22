@@ -114,6 +114,19 @@
 (bind 8080 dis)
 ```
 
+### simple app with a logger
+
+```scheme
+(import
+ (robusta server)
+ (robusta dispatcher))
+
+(define logger (make-stdout-logger))
+(define app (make-dispatcher "/" => (λ _ (response content => "hello"))))
+
+(bind 8080 app logger)
+```
+
 ### POST example
 
 ```scheme

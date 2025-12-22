@@ -57,16 +57,20 @@ creating dispatchers
       (lets ((req-path fl path rpath (rpath-vs from request)))
         (cond
          ((directory? rpath) (static-index from request))
-         (else
+         ((file? (string-append from path))
           (response
            code    => 200
            headers => `((Accept-ranges . "bytes") (Content-type . ,(path->mime path)))
-           content => (file->list (string-append from path)))))))
+           content => (file->list (string-append from path))))
+         (else
+          (response
+           code    => 404
+           headers => `((Content-type . "text/html"))
+           content => "404 not found")))))
 
-    ;; TODO: fuck! path traversal
     (define (dispatcher lst)
       (λ (r)
-        (lets ((path (get (get r 'request empty) 'path #f))
+        (lets ((path (get (get r 'request empty) 'path ""))
                (used-dispatcher (car* (filter (λ (d) (dispatch? (car d) path)) lst))))
           ;; TODO: custom 404 page
           (if (null? used-dispatcher)

@@ -89,11 +89,14 @@ it's nicely packaged inside of `(robusta dispatcher)`
               (values bs (reverse ls))
               (walk bs (cons (list->string l) ls))))))
 
+    (define path-traversal->no-path-traversal
+      (string->regex "s/\\.\\.//g"))
+
     (define (parse-by-fd fd)
       (lets ((bs l (fd->request-lines fd))
              (L ((string->regex "c/ /") (fuckbr (car l))))
              (method   (string->symbol (lref L 0)))
-             (path     (lref L 1))
+             (path     (path-traversal->no-path-traversal (bytes->string (url/decode (lref L 1)))))
              (protocol (lref L 2)))
         (let ((res (ff
                     'headers  (lst->headers (cdr l))
