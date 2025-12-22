@@ -32,36 +32,36 @@ creating dispatchers
               (string=? path req))
           (string=? path req)))
 
-    (define (rpath-vs from request)
-      (let* ((req-path (get request 'path 'bug))
-             (fl (string-length from))
-             (path (substring req-path fl (string-length req-path)))
-             (rpath (string-append from path)))
-        (values req-path fl path rpath)))
+    ;; TODO: remove unneeded // -> /
+    ;; can be bodged with s/\\/\\//\\/g OR done properly with some parsing
+    (define (static-index path ipath)
+      (response
+       code    => 200
+       headers => '((Content-type . "text/html"))
+       content => (html/encode
+                   `(html
+                     (head
+                      ((meta (charset . "utf-8")))
+                      (title "index of " ,ipath))
+                     (body
+                      (h1 "index of " ,ipath)
+                      ,(append '(ul) (map (λ (e) `(li ((a (href . ,(str ipath "/" e))) ,e))) (dir->list path))))))))
 
-    (define (static-index from request)
-      (lets ((req-path fl path rpath (rpath-vs from request)))
-        (response
-         code    => 200
-         headers => '((Content-type . "text/html"))
-         content => (html/encode
-                     `(html
-                       (head
-                        ((meta (charset . "utf-8")))
-                        (title ,(string-append "index of " path)))
-                       (body
-                        (h1 "index of " ,path)
-                        ,(append '(ul) (map (λ (e) `(li ((a (href . ,e)) ,e))) (dir->list rpath)))))))))
+    (define (rpath-of from base request)
+      (let ((rp (get request 'path 'bug)))
+        (string-append
+         from
+         (substring rp (string-length base) (string-length rp)))))
 
-    (define (static-dispatcher from request)
-      (lets ((req-path fl path rpath (rpath-vs from request)))
+    (define (static-dispatcher from base request)
+      (lets ((rpath (rpath-of from base request)))
         (cond
-         ((directory? rpath) (static-index from request))
-         ((file? (string-append from path))
+         ((directory? rpath) (static-index rpath (get request 'path "")))
+         ((file? rpath)
           (response
            code    => 200
-           headers => `((Accept-ranges . "bytes") (Content-type . ,(path->mime path)))
-           content => (file->list (string-append from path))))
+           headers => `((Accept-ranges . "bytes") (Content-type . ,(path->mime rpath)))
+           content => (file->list rpath)))
          (else
           (response
            code    => 404

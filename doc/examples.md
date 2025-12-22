@@ -101,7 +101,11 @@
      (head)
      (body "see the static pages" ((a (href . "static/")) "here")))))
 
-(define static! (H static-dispatcher "static/"))
+(define (static! req) (static-dispatcher "static" "/static/" req))
+;;                                        ^       ^
+;;                                        |       \_ static route url base
+;;                                        \_ directory with static files
+
 
 (define dis (make-dispatcher
              "m/static(\\/.*)?/" => static!
