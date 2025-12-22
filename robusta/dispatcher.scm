@@ -12,6 +12,7 @@ creating dispatchers
    (robusta mime)
    (robusta server)
    (prefix (robusta encoding html) html/)
+   (prefix (robusta encoding base64) b64/)
    (only (robusta common) ->string))
 
   (export
@@ -20,6 +21,7 @@ creating dispatchers
    static-index
    redirect
    dispatcher
+   with-http-basic-auth
    )
 
   (begin
@@ -91,4 +93,25 @@ creating dispatchers
                    `(html
                      (head)
                      (body "302 found")))))
+
+    (define (with-http-basic-auth* req username passwd thunk fail-fn)
+      (lets ((ok (str "Basic " (b64/string->base64 (format #f "~a:~a" username passwd))))
+             (auth (get (get req 'headers empty) 'authorization #f)))
+        (if (equal? ok auth)
+            (thunk)
+            (fail-fn))))
+
+    (define-syntax with-http-basic-auth
+      (syntax-rules (code content headers Content-type WWW-Authenticate)
+        ((_ (req username passwd) code* code-else)
+         (with-http-basic-auth* req username passwd (λ () code*) (λ () code-else)))
+        ((_ (req username passwd) code*)
+         (with-http-basic-auth* req username passwd
+           (λ () code*)
+           (λ () (ff
+                  'code    401
+                  'content "unauthorized"
+                  'headers '((Content-type . "text/html")
+                             (WWW-Authenticate . "Basic realm=\"authenticate\""))))))))
+
 ))

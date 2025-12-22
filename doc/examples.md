@@ -40,6 +40,25 @@
 (bind 8080 dispatcher)
 ```
 
+### http basic auth
+
+```scheme
+(import
+ (robusta server)
+ (robusta dispatcher))
+
+(define app
+  (make-dispatcher
+   "/" => (λ (req)
+            (with-http-basic-auth (req "login" "password")
+              (response
+               code    => 200
+               headers => '((Content-type . "text/html"))
+               content => "ok")))))
+
+(bind 8080 app)
+```
+
 ### using (robusta encoding json)
 
 ```scheme
