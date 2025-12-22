@@ -51,7 +51,7 @@ urlencode, urldecode
       (get-parses
        ((k get-thing)
         (_ (get-imm #\=))
-        (v get-thing))
+        (v (get-either get-thing (get-epsilon #n))))
        (cons (bytes->string k) (bytes->string v))))
 
     (define get-kv-pairs

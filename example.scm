@@ -7,6 +7,7 @@
  (prefix (robusta encoding json) json/)
  (prefix (robusta db tsv) tsv/)
  (prefix (owl sys) sys/)
+ (robusta fastcgi)
  (owl thread)
  (owl digest))
 
@@ -112,7 +113,7 @@ f(3)")))))
   (let ((s (read stdin)))
     (cond
      ((or (eqv? s 'exit) (eqv? s 'stop))
-      (catch-thread "main-server-thread")
+      (catch-thread 'main-server-thread)
       (exit-owl 0))
      (else
       (print (eval s *toplevel*)))))
@@ -120,6 +121,6 @@ f(3)")))))
 
 (λ (args)
   (thread
-   "main-server-thread"
-   (robusta/bind 8080 dispatcher))
+   'main-server-thread
+   (fastcgi-bind 8081 dispatcher))
   (repl))

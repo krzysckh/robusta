@@ -6,17 +6,20 @@ it's nicely packaged inside of `(robusta dispatcher)`
 |#
 
 (define-library
-  (robusta http)
+    (robusta http)
 
   (import
-    (owl toplevel)
-    (owl regex)
-    (prefix (owl sys) sys/)
-    (prefix (robusta encoding url) url/)
-    (scheme base))
+   (owl toplevel)
+   (owl regex)
+   (prefix (owl sys) sys/)
+   (prefix (robusta encoding url) url/)
+   (scheme base)
+   (only (robusta common) lowercase)
+   )
 
   (export
-    parse-by-fd)
+   maybe-parse-post-data
+   parse-by-fd)
 
   (begin
     (define (unwrap-request ll acc)
@@ -36,6 +39,13 @@ it's nicely packaged inside of `(robusta dispatcher)`
               (fuckbr (cadr vs))
               (get-content-type (cdr l)))))))
 
+    (define (maybe-parse-post-data bytes content-type)
+      (cond
+       ((string=? content-type "application/x-www-form-urlencoded")
+        (url/decode-form (list->string bytes)))
+       (else
+        bytes)))
+
     ;; TODO: try N times to get a block sized content-length from fd instead of just once
     ;; TODO: right now it's vulnerable to slow lorries
     (define (get-post-data req l bs)
@@ -43,19 +53,7 @@ it's nicely packaged inside of `(robusta dispatcher)`
                 (content-type   (get hdrs 'content-type #f))
                 (content-length (get hdrs 'content-length #f)))
         (let ((bytes (force-ll (ltake bs (string->number content-length)))))
-          (cond
-           ((string=? content-type "application/x-www-form-urlencoded")
-            (url/decode-form (list->string bytes)))
-           (else
-            bytes)))))
-
-    (define (lowercase s)
-      (string-map
-       (λ (c)
-         (if (and (>= c #\A) (<= c #\Z))
-             (+ c (- #\a #\A))
-             c))
-       s))
+          (maybe-parse-post-data bytes content-type))))
 
     (define (lst->headers lst)
       (list->ff

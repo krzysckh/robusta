@@ -6,7 +6,9 @@ Robusta is a set of almost-ready-to-use™ tools that can make writing web stuff
 
 Robusta consists of:
 * `(robusta server)` - simple async http server,
+* `(robusta fastcgi)` - fastcgi wrapper for simple deployments,
 * `(robusta dispatcher)` - regex-based dispatchers for `(robusta server)`,
+* `(robusta log)` - logging "middleware",
 * `(robusta http)` - parsing HTTP,
 * `(robusta mime)` - builtin MIME table,
 * `(robusta encoding json)` - json encoder and decoder,

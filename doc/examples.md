@@ -123,6 +123,7 @@
 ```scheme
 (import
  (robusta server)
+ (robusta log)
  (robusta dispatcher))
 
 (define logger (make-stdout-logger))

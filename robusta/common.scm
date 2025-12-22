@@ -9,6 +9,7 @@ common functions
    (prefix (owl parse) get-))
 
   (export
+   lowercase
    flatten
    hex?
    get-single-hex
@@ -64,5 +65,13 @@ common functions
          (+ (* n base)
             (fxand (if (lesser? #\9 digit) (lets ((d _ (fx- digit 7))) d) digit) 15)))
        0 digits))
+
+    (define (lowercase s)
+      (string-map
+       (λ (c)
+         (if (and (>= c #\A) (<= c #\Z))
+             (+ c (- #\a #\A))
+             c))
+       s))
 
     ))
