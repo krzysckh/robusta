@@ -58,6 +58,8 @@ this library implements a basic http server
          'ip ip
          'fd fd)))
 
+    ;; TODO: should i return info about internal server errors? they're not really descriptive so
+    ;; i think that might be okay
     (define (bind port f)
       (print "starting server @ http://localhost:" port)
       (let ((sock (open-socket port)))
@@ -67,14 +69,20 @@ this library implements a basic http server
              (begin
                (catch-signals (list sigpipe))
                (set-signal-action signal-handler/ignore)
-               (let ((r (c->request ip fd)))
-                 (try-thunk
-                  (λ () (f r))
-                  (λ vs
-                    (respond r (response
-                                code    => 501
-                                content => (str "501 internal server error: " vs))))
-                  (string->symbol (str "try-" (time-ns)))))))
-            (loop)))))
+               (try-thunk
+                (λ ()
+                  (let ((r (c->request ip fd)))
+                    (try-thunk
+                     (λ () (f r))
+                     (λ vs
+                       (respond r (response
+                                   code    => 501
+                                   content => (str "501 internal server error: " vs))))
+                     (string->symbol (str "try-" (time-ns))))))
+                (λ vs
+                  (safe-write-bytes fd (str "HTTP/1.1 400\r\nContent-type: text/plain\r\n\r\nbad request: " vs))
+                  (close-port fd))
+                (string->symbol (str "try-" (time-ns)))))))
+          (loop))))
 
     ))
