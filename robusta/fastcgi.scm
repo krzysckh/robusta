@@ -18,6 +18,19 @@ Example configurations, assuming web app running at 127.0.0.1:8080:
   </Directory>
 </VirtualHost>
 ```
+
+- OpenBSD httpd
+
+```
+server "robusta.local" {
+  listen on 0.0.0.0 port 80
+  log style forwarded
+  location "*" {
+    fastcgi socket tcp 127.0.0.1 8080
+  }
+}
+```
+
 |#
 
 (define-library
