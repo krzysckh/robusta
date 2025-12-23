@@ -75,8 +75,8 @@ this library implements a basic http server
                   (λ () (f r))
                   (λ vs
                     (respond r (response
-                                code    => 501
-                                content => (str "501 internal server error: " vs))))
+                                code    => 500
+                                content => (str "500 internal server error: " vs))))
                   (string->symbol (str "try-" (time-ns)))))))
             (loop)))))
 

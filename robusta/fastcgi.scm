@@ -42,6 +42,7 @@ server "robusta.local" {
    (owl thread)
    (owl sys)
    (only (robusta http) maybe-parse-post-data)
+   (robusta server)
    (robusta common))
 
   (export
@@ -75,9 +76,20 @@ server "robusta.local" {
     (define FCGI-OVERLOADED       2)
     (define FCGI-UNKNOWN-ROLE     3)
 
+    (define (get-whole-block fd size)
+      (if (= size 0)
+          (eof-object)
+          (let loop ((bv (bytevector))
+                     (remaining size))
+            (if (= size (bytevector-length bv))
+                bv
+                (let ((new (try-get-block fd remaining #t)))
+                  (if (eof-object? new)
+                      (eof-object)
+                      (loop (bytevector-append bv new) (- remaining (bytevector-length new)))))))))
 
     (define (fastcgi-get-frame fd)
-      (lets ((hdr (try-get-block fd 8 #t)))
+      (lets ((hdr (get-whole-block fd 8)))
         (if (eof-object? hdr)
             #f
             (lets ((version (bytevector-u8-ref hdr 0))
@@ -86,12 +98,14 @@ server "robusta.local" {
                           (bytevector-u8-ref hdr 3)))
                    (length (+ (<< (bytevector-u8-ref hdr 4) 8)
                               (bytevector-u8-ref hdr 5)))
-                   (padl (bytevector-u8-ref hdr 6)))
+                   (padl (bytevector-u8-ref hdr 6))
+                   (data (get-whole-block fd length))
+                   (pad  (get-whole-block fd padl)))
               (ff
                'id id
                'type type
-               'data (try-get-block fd length #t)
-               'pad (try-get-block fd padl #t))))))
+               'data data
+               'pad pad)))))
 
                                         ; data -> data' (k . v)
     (define (fastcgi-get-kv lst)
@@ -156,34 +170,41 @@ server "robusta.local" {
                        'path      (cdr (assoc "REQUEST_URI" params))
                        'protocol  (cdr (assoc "SERVER_PROTOCOL" params))
                        'post-data (maybe-parse-post-data
-                                   (get data 'stdin #n)
+                                   (reverse (get data 'stdin #n))
                                    (get headers 'content-type "[unknown]"))
-                       )))
-        (f (ff
-            'send (λ (resp)
-                    (lets ((code    (get resp 'code 200))
-                           (headers (get resp 'headers '((Content-type . "text/plain"))))
-                           (text    (get resp 'content ""))
-                           (siz     (if (string? text)
-                                        (string-length text)
-                                        (len text)))
-                           (response-body (if (list? text) text (string->bytes text))))
-                      (logger request code (len response-body))
-                      (fastcgi-send-response
-                       fd id
-                       (append
-                        (string->bytes (fastcgi-make-headers (cons (cons 'Status code) headers)))
-                        response-body))))
-            'request request
-            'ip (bytevector 0 0 0 0)
-            'fd #f))))
+                       ))
+             (req (ff
+                   'send (λ (resp)
+                           (lets ((code    (get resp 'code 200))
+                                  (headers (get resp 'headers '((Content-type . "text/plain"))))
+                                  (text    (get resp 'content ""))
+                                  (siz     (if (string? text)
+                                               (string-length text)
+                                               (len text)))
+                                  (response-body (if (list? text) text (string->bytes text))))
+                             (logger request code (len response-body))
+                             (fastcgi-send-response
+                              fd id
+                              (append
+                               (string->bytes (fastcgi-make-headers (cons (cons 'Status code) headers)))
+                               response-body))))
+                   'request request
+                   'ip (bytevector 0 0 0 0)
+                   'fd #f)))
+        (try-thunk
+         (λ () (f req))
+         (λ vs
+           (respond req (response
+                         code    => 500
+                         content => (str "500 internal server error: " vs))))
+         (string->symbol (str "try-" (time-ns))))))
 
     (define (fastcgi-bind port f . logger)
       (print "starting server @ http://localhost:" port)
       (let ((sock (open-socket port)))
         (let loop ()
           (lets ((ip fd (tcp-client sock)))
-            ;; (thread
+            (thread
              (begin
 
                (catch-signals (list sigpipe))
@@ -227,13 +248,13 @@ server "robusta.local" {
                                 (put
                                  (get rdata id empty)
                                  'stdin
-                                 (append
-                                  (get (get rdata id empty) 'stdin #n)
-                                  (bytevector->list data)))))))
+                                 (cons
+                                  data
+                                  (get (get rdata id empty) 'stdin #n)))))))
                          (else => (λ (fr)
                                     ;; (print "ignoring frame " fr)
                                     (walk rdata))))))))
                (close-port fd)))
-          ;; )
+          )
           (loop))))
     ))

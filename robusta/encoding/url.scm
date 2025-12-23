@@ -70,17 +70,11 @@ urlencode, urldecode
       (get-parse get-thing (str-iter s) #f))
 
     (define (decode-form-f data f)
-      (map
-       (λ (x) (cons (f (car x)) (cdr x)))
-       (get-parse parser (str-iter data) 'shit)))
-
-      ;; (let ((things ((string->regex "c/&/") data)))
-      ;;   (map (λ (s)
-      ;;          (let* ((vs ((string->regex "c/=/") s))
-      ;;                 (k (f (car vs)))
-      ;;                 (v (cadr vs)))
-      ;;            (cons k (decode* v))))
-      ;;        things)))
+      (if (= 0 (string-length data))
+          #n
+          (map
+           (λ (x) (cons (f (car x)) (cdr x)))
+           (get-parse parser (str-iter data) 'shit))))
 
     (define (decode-form data)
       (decode-form-f data string->symbol))

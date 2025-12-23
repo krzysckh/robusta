@@ -156,29 +156,26 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
 
     (define encode-string str*)
 
+    (define (comma-ize lst)
+      (cond
+       ((= (len lst) 0) "")
+       ((= (len lst) 1) (car lst))
+       (else            (fold (λ (a b) (str a "," b)) (car lst) (cdr lst)))))
+
+    (define (encode-kv l encode)
+      (str (encode (car l)) ":" (encode (cdr l))))
+
     (define (encode v)
       (let ((encode-list
              (λ (lst)
-               (let* ((l (fold
-                          string-append
-                          ""
-                          (map (λ (x) (string-append (encode x) "," )) lst)))
-                      (L (substring l 0 (- (string-length l) 1))))
-                 (string-append "[" L "]"))))
+               (str "[" (comma-ize (map encode lst)) "]")))
             (encode-object
-             (λ (obj)
-               (let* ((o (fold
-                          string-append
-                          ""
-                          (map (λ (x) (string-append
-                                       (encode (->string (car x)))
-                                       ":" (encode (cdr x)) ",")) obj)))
-                      (O (substring o 0 (- (string-length o) 1))))
-                 (string-append "{" O "}"))))
-            (v (if (vector? v) (vector->list v) v)))
+             (λ (ob)
+               (str "{" (comma-ize (map (C encode-kv encode) ob)) "}"))))
         (cond
          ((eqv? v 'null) "null")
          ((object? v) (encode-object v))
+         ((vector? v) (encode-list (vector->list v)))
          ((list? v) (encode-list v))
          ((number? v) (number->string v))
          ((string? v) (encode-string v))

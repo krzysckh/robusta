@@ -18,33 +18,41 @@ it's nicely packaged inside of `(robusta dispatcher)`
    )
 
   (export
+   chunked-post-data->file
+   chunked-post-data->list
    maybe-parse-post-data
    parse-by-fd)
 
   (begin
-    (define (unwrap-request ll acc)
-      (cond
-        ((pair? ll) (unwrap-request ((cdr ll)) (append acc (list (car ll)))))
-        (else
-          acc)))
+    (define (chunked-post-data->list pd)
+      (fold
+       (λ (a b) (append a (bytevector->list b)))
+       #n
+       pd))
 
-    (define cut: (string->regex "c/: ?/"))
+    (define (chunked-post-data->file pd path)
+      (let ((f (open-output-file path)))
+        (let loop ((pd pd))
+          (if (null? pd)
+              (close-port f)
+              (begin
+                (write-bytevector (car pd) f)
+                (loop (cdr pd)))))))
+
     (define fuckbr (string->regex "s/\r//g"))
-    (define (get-content-type l)
-      (cond
-       ((null? l) #f)
-       (else
-        (let ((vs (cut: (car l))))
-          (if (string-ci=? (car vs) "content-type")
-              (fuckbr (cadr vs))
-              (get-content-type (cdr l)))))))
 
-    (define (maybe-parse-post-data bytes content-type)
+    (define (chunked-post-data? ob)
+      (and (list? ob)
+           (all bytevector? ob)))
+
+    (define (maybe-parse-post-data pd content-type)
       (cond
        ((string=? content-type "application/x-www-form-urlencoded")
-        (url/decode-form (list->string bytes)))
+        (url/decode-form (list->string (if (chunked-post-data? pd)
+                                           (chunked-post-data->list pd)
+                                           pd))))
        (else
-        bytes)))
+        pd)))
 
     ;; TODO: try N times to get a block sized content-length from fd instead of just once
     ;; TODO: right now it's vulnerable to slow lorries
