@@ -11,7 +11,7 @@ Robusta consists of:
 * `(robusta log)` - logging "middleware",
 * `(robusta http)` - parsing HTTP,
 * `(robusta mime)` - builtin MIME table,
-* `(robusta i11n)` - i11n,
+* `(robusta l10n)` - l10n,
 * `(robusta encoding json)` - json encoder and decoder,
 * `(robusta encoding html)` - html encoder,
 * `(robusta encoding url)` - decoder for urlencoded strings,
