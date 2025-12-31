@@ -44,6 +44,7 @@ for example:
 
   (import
    (owl toplevel)
+   (owl format)
    (owl thread))
 
   (export
@@ -58,23 +59,27 @@ for example:
     (define (l10n-get lang it)
       (interact 'l10n (tuple 'get lang it)))
 
+    (define (l10n-default lang it)
+      (format #f "[unable to translate ~a to lang=~a]" it lang))
+
     (define (start-l10nizer* base default)
-      (let ((default (if (null? default) "???" default)))
-        (thread
-         'l10n
-         (let loop ((l10n base))
-           (lets ((who v (next-mail)))
-             (tuple-case v
-               ((add lang map)
-                (loop (put l10n lang map)))
-               ((dump)                      ; dump & die
-                (mail who (λ () (start-l10nizer* l10n default))))
-               ((get lang it)
-                (mail who (get (get l10n lang empty) it default))
-                (loop l10n))
-               (else
-                (print "unknown l10n query: " v)
-                (loop l10n))))))))
+      (thread
+       'l10n
+       (let loop ((l10n base))
+         (lets ((who v (next-mail)))
+           (tuple-case v
+             ((add lang map)
+              (loop (put l10n lang map)))
+             ((dump)                      ; dump & die
+              (mail who (λ () (start-l10nizer* l10n default))))
+             ((get lang it)
+              (if-lets ((res (get (get l10n lang empty) it #f)))
+                (mail who res)
+                (mail who (if (null? default) (l10n-default lang it) (car default))))
+              (loop l10n))
+             (else
+              (print "unknown l10n query: " v)
+              (loop l10n)))))))
 
     (define (start-l10nizer)
       (start-l10nizer* empty #n))
