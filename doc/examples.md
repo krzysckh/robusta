@@ -40,6 +40,28 @@
 (bind 8080 dispatcher)
 ```
 
+### streamed response from a route
+
+```scheme
+(import
+ (robusta full))
+
+(define app
+  (make-dispatcher
+   "/" => (λ (req)
+            (response
+             content => (λ (stream)
+                          (let loop ((n 10))
+                            (if (= n 0)
+                                #t
+                                (begin
+                                  (stream '(#\a 10))
+                                  (sleep 500)
+                                  (loop (- n 1))))))))))
+
+(bind 8080 app)
+```
+
 ### http basic auth
 
 ```scheme

@@ -9,6 +9,7 @@ common functions
    (prefix (owl parse) get-))
 
   (export
+   content-length
    lowercase
    flatten
    hex?
@@ -73,5 +74,12 @@ common functions
              (+ c (- #\a #\A))
              c))
        s))
+
+    (define (content-length c)
+      (cond
+       ((string? c)     (string-length c))
+       ((list? c)       (len c))
+       ((bytevector? c) (bytevector-length c))
+       (else #f)))
 
     ))

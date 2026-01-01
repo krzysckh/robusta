@@ -125,24 +125,55 @@ server "robusta.local" {
         (values lst (cons (bytes->string key) (bytes->string val)))))
 
     (define (fastcgi-build-frame type id data)
-      `(1                       ; version
-        ,type                   ; type
-        ,(>> id 8)              ; \
-        ,(band id #xff)         ; / id
-        ,(>> (len data) 8)      ; \
-        ,(band (len data) #xff) ; / content length
-        0 0
-        ,@data))                ; data
+      (bytevector-append
+       (bytevector
+        1                                     ; version
+        type                                  ; type
+        (>> id 8)                             ; \
+        (band id #xff)                        ; / id
+        (>> (bytevector-length data) 8)       ; \
+        (band (bytevector-length data) #xff)  ; / content length
+        0 0)
+       data))                                 ; data
+
+    (define (data->bv data)
+      (cond
+       ((list? data)       (list->bytevector data))
+       ((bytevector? data) data)
+       ((string? data)     (list->bytevector (string->bytes data)))
+       ((function? data)   data)
+       (else               (error "unknown type for data->list " data))))
+
+    ;; send data, in as many frames as needed
+    ;; does NOT end the request
+    (define (fastcgi-send fd id data)
+      (let loop ((top 0))
+        (if (>= top (bytevector-length data))
+            #t
+            (let ((end (min (+ top #xffff) (bytevector-length data))))
+              (write-bytevector
+               (fastcgi-build-frame
+                FCGI-STDOUT
+                id
+                (bytevector-copy data top end))
+               fd)
+              (loop end)))))
+
+    (define (fastcgi-end-request fd id)
+      (write-bytevector (fastcgi-build-frame FCGI-STDOUT id (bytevector)) fd)
+      (write-bytevector (fastcgi-build-frame FCGI-END-REQUEST id (bytevector 0 0 0 0 0 0 0 0)) fd))
 
     (define (fastcgi-send-response fd id data)
-      (lets ((d rest (values (take data #xffff) (drop data #xffff))))
-        (let ((frame (fastcgi-build-frame FCGI-STDOUT id d)))
-          (write-bytes fd frame)
-          (if (not (null? rest))
-              (fastcgi-send-response fd id rest)
-              (begin
-                (write-bytes fd (fastcgi-build-frame FCGI-STDOUT id '()))
-                (write-bytes fd (fastcgi-build-frame FCGI-END-REQUEST id '(0 0 0 0 0 0 0 0))))))))
+      (fastcgi-send fd id data)
+      (fastcgi-end-request fd id))
+
+    ;; TODO: streaming here is very CPU intensive, i think it's because bytevector operations
+    ;; do bv->list->bv conversions for bytevector-copy. this is less than ideal.
+    (define (fastcgi-stream-response fd id headers-string fn)
+      (fastcgi-send fd id headers-string)
+      (let ((stream (λ (data) (fastcgi-send fd id (data->bv data)))))
+        (fn stream)
+        (fastcgi-end-request fd id)))
 
     (define (kvize c)
       (str (car c) ": " (cdr c)))
@@ -178,16 +209,14 @@ server "robusta.local" {
                            (lets ((code    (get resp 'code 200))
                                   (headers (get resp 'headers '((Content-type . "text/plain"))))
                                   (text    (get resp 'content ""))
-                                  (siz     (if (string? text)
-                                               (string-length text)
-                                               (len text)))
-                                  (response-body (if (list? text) text (string->bytes text))))
-                             (logger request code (len response-body))
-                             (fastcgi-send-response
-                              fd id
-                              (append
-                               (string->bytes (fastcgi-make-headers (cons (cons 'Status code) headers)))
-                               response-body))))
+                                  (siz     (content-length text))
+                                  (response-body (data->bv text))
+                                  (headers (data->bv (fastcgi-make-headers (cons (cons 'Status code) headers)))))
+                             ; (print "response-body: " response-body)
+                             (logger request code siz)
+                             (if (function? response-body)
+                                 (fastcgi-stream-response fd id headers response-body)
+                                 (fastcgi-send-response fd id (bytevector-append headers response-body)))))
                    'request request
                    'ip (bytevector 0 0 0 0)
                    'fd #f)))
@@ -207,6 +236,7 @@ server "robusta.local" {
             (thread
              (begin
 
+               ;; TODO: an early closed connection on streamed data can cause a sigpipe death loop
                (catch-signals (list sigpipe))
                (set-signal-action signal-handler/ignore)
 

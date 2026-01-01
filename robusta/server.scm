@@ -33,7 +33,19 @@ this library implements a basic http server
       ((get r 'send 'bug) resp))
 
     (define (safe-write-bytes port lst)
-      (write-bytes port (if (string? lst) (append (string->list lst) '(10)) lst)))
+      ;; (print "will safe write bytes " lst)
+      (cond
+       ((string? lst)
+        (write-bytes port (string->list lst))
+        (write-bytes port '(10)))
+       ((list? lst)
+        (write-bytes port lst))
+       ((bytevector? lst)
+        (write-bytevector lst port))
+       ((function? lst)
+        (lst (H safe-write-bytes port)))
+       (else
+        (error "unsupported type for safe-write-bytes " lst))))
 
     (define (c->request ip fd log)
       (let* ((port (fd->port fd))
@@ -43,17 +55,16 @@ this library implements a basic http server
                  (lets ((code    (get resp 'code 200))
                         (headers (get resp 'headers '((Content-type . "text/plain"))))
                         (text    (get resp 'content ""))
-                        (siz     (if (string? text)
-                                     (string-length text)
-                                     (len text))))
+                        (siz     (content-length text)))
                    (safe-write-bytes port (str "HTTP/1.1 " code))
                    (for-each
                     (lambda (v) (safe-write-bytes port (str (car v) ": " (cdr v))))
                     headers)
-                   (safe-write-bytes port (str "Content-length: " siz))
+                   (when (not (function? text))
+                     (safe-write-bytes port (str "Content-length: " siz)))
                    (safe-write-bytes port "")
                    (safe-write-bytes port text) ;; text may also actually be a list (!!)
-                   (log req code siz)
+                   (log req code (or siz -1))
                    (close-port port)))
          'request req
          'ip ip

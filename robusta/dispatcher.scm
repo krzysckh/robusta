@@ -61,7 +61,9 @@ creating dispatchers
           (response
            code    => 200
            headers => `((Accept-ranges . "bytes") (Content-type . ,(path->mime rpath)))
-           content => (file->list rpath)))
+           content => (λ (stream)
+                        (let ((bs (byte-stream->block-stream (file->byte-stream rpath) #xffff)))
+                          (lfold (λ (a b) (stream b)) #n bs)))))
          (else
           (response
            code    => 404
