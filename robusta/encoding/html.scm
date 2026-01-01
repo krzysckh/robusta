@@ -29,7 +29,7 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
           (str "</" tag ">")))
 
     (define (string->quote-quotes-string s)
-      (str-replace s "\"" "\\\""))
+      (str-replace s "\"" "&quot;"))
 
     (define (encode* lst self-closing-tags)
       (let walk ((it lst))
