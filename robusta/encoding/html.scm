@@ -35,8 +35,8 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
       (let walk ((it lst))
         (cond
          ((string? it) it)
-         ((number? it) it)
-         ((symbol? it) it)
+         ((number? it) (str it))
+         ((symbol? it) (str it))
          ((list? (car it))
           (str
            "<" (caar it) " "
