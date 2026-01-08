@@ -35,6 +35,9 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
     (define (string->quote-quotes-string s)
       (str-replace s "\"" "&quot;"))
 
+    (define (stringify-kv thing)
+      (fold (λ (a b) (str a (car b) "=\"" (string->quote-quotes-string (cdr b)) "\" ")) "" thing))
+
     (define (encode*/printer lst self-closing-tags f)
       (let ((f (let walk ((it lst) (f f))
                  (cond
@@ -45,10 +48,7 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
                   ((symbol? it)
                    (f (str it)))
                   ((list? (car it))
-                   (lets ((f (f (str
-                                 "<" (caar it) " "
-                                 (fold (λ (a b) (str a (car b) "=\"" (string->quote-quotes-string (cdr b)) "\" ")) "" (cdar it))
-                                 ">")))
+                   (lets ((f (f (str "<" (caar it) " " (stringify-kv (cdar it)) ">")))
                           (f (fold (λ (f v) (walk v f)) f (cdr it)))
                           (f (f (maybe-close (caar it) self-closing-tags))))
                      f))
@@ -67,9 +67,7 @@ this library was originally written for [chai](https://github.com/krzysckh/chai)
          ((symbol? it) (str it))
          ((list? (car it))
           (str
-           "<" (caar it) " "
-           (fold (λ (a b) (str a (car b) "=\"" (string->quote-quotes-string (cdr b)) "\" ")) "" (cdar it))
-           ">"
+           "<" (caar it) " " (stringify-kv (cdar it)) ">"
            (fold str "" (map walk (cdr it)))
            (maybe-close (caar it) self-closing-tags)
            ))
