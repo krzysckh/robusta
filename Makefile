@@ -11,7 +11,7 @@ doc/robusta.pdf: doc/robusta.md
 	pandoc -s -f gfm -t pdf ./doc/robusta.md -o ./doc/robusta.pdf \
 		--pdf-engine=pdfroff
 doc/robusta.md: $(FEATHER)
-	$(FEATHER) -o doc/robusta.md --title "(robusta)" \
+	$(FEATHER) -s -o doc/robusta.md --title "(robusta)" \
 		doc/prelude.md \
 		`find ./robusta -type f -iname '*.scm'` \
 		doc/examples.md

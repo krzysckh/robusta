@@ -6,7 +6,7 @@
 
 (bind
   8080
-  (lambda (r)
+  (λ (r)
     (respond
      r (response
         code    => 200

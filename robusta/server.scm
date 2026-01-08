@@ -51,14 +51,14 @@ this library implements a basic http server
       (let* ((port (fd->port fd))
              (req (http/parse-by-fd fd)))
         (ff
-         'send (lambda (resp)
+         'send (λ (resp)
                  (lets ((code    (get resp 'code 200))
                         (headers (get resp 'headers '((Content-type . "text/plain"))))
                         (text    (get resp 'content ""))
                         (siz     (content-length text)))
                    (safe-write-bytes port (str "HTTP/1.1 " code))
                    (for-each
-                    (lambda (v) (safe-write-bytes port (str (car v) ": " (cdr v))))
+                    (λ (v) (safe-write-bytes port (str (car v) ": " (cdr v))))
                     headers)
                    (when (not (function? text))
                      (safe-write-bytes port (str "Content-length: " siz)))
