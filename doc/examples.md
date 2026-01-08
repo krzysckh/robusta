@@ -109,6 +109,55 @@
 (robusta/bind 8080 (robusta/make-dispatcher "m/^.*$/" => idx))
 ```
 
+### using (robusta encoding html) at scale
+
+If you have a bigger document, you should probably "stream" it instead of constructing a big string with the final html code.
+This will be faster, as constructing strings like it is done in `html/encode` is a both memory and cpu heavy operation in owl.
+
+```scheme
+(import
+ (robusta full))
+
+(define html
+  `(html
+    (head ((link (rel . "stylesheet") (href . "style.css"))))
+    (body
+     ,@(map
+        (λ (i) `((p (class . "klass")) ,(str "test" i)))
+        (iota 0 1 1000)))))
+
+(define I* (λ (_) I*))
+
+(print ";; Defined html")
+
+(print ";; html/encode ->string")
+,time (html/encode html)
+
+(print ";; html/encode/printer")
+,time (html/encode/printer html I*)
+;;                              ^
+;; this function is the "streaming" function
+;; it is of a form (λ (s) whatever), where s is either
+;;   * a string of "something" that is the continuation of a html document, or
+;;   * eof-object
+;; it MUST return either itself, or another function. its return value will be used in every consequent call
+;; as the function getting called, so it's possible to have user data flowing
+
+;;; This is also an example of what can be used as (λ (s) whatever) in encode/printer context (as a printer)
+(define (displayer-to fd)
+  (letrec ((f (λ (s)
+                (display-to fd s)
+                f))) ; it returns itself
+    f))
+
+(print ";; html/encode/printer w/ 2kb streamer")
+
+,time (html/encode/printer html (html/make-streamer I (<< 1 11)))
+;;                                                  ^- this is ANY λs.whatever, it does not need to return anything meaningful
+;;                                                     it may be `display' or whatever you please
+
+```
+
 ### static pages with an index dispatcher
 
 ```scheme

@@ -30,6 +30,10 @@
    b64/decode
 
    html/encode
+   html/encode*
+   html/encode/printer
+   html/encode*/printer
+   html/make-streamer
 
    json/encode
    json/decode
