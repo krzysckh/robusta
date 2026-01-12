@@ -35,17 +35,18 @@ urlencode, urldecode
         (b get-single-hex))
        (bytes->number (list a b) 16)))
 
-    (define get-+
+    (define get-char
       (get-parses
-       ((_ (get-imm #\+)))
-       #\space))
+       ((c (get-byte-if (λ (c) (not (has? '(#\= #\&) c))))))
+       (if (= c #\+)
+           #\space
+           c)))
 
     (define get-thing
       (get-plus
        (get-one-of
         get-hex
-        get-+
-        (get-byte-if (B not (C = #\=))))))
+        get-char)))
 
     (define get-kv-pair
       (get-parses
@@ -55,13 +56,11 @@ urlencode, urldecode
        (cons (bytes->string k) (bytes->string v))))
 
     (define get-kv-pairs
-      (get-plus
-       (get-one-of
-        (get-parses
-         ((p    get-kv-pair)
-          (_    (get-imm #\&)))
-         p)
-        get-kv-pair)))
+      (get-star
+       (get-parses
+        ((p get-kv-pair)
+         (_ (get-maybe (get-imm #\&) #n)))
+        p)))
 
     (define parser
       get-kv-pairs)
