@@ -41,6 +41,7 @@ server "robusta.local" {
    (owl proof)
    (owl thread)
    (owl sys)
+   (only (owl eval env) verbose-vm-error)
    (only (robusta http) maybe-parse-post-data)
    (robusta server)
    (robusta common))
@@ -222,10 +223,17 @@ server "robusta.local" {
                    'fd #f)))
         (try-thunk
          (λ () (f req))
-         (λ vs
+         (λ vs                          ; TODO: move this outside and use with regular server as well
            (respond req (response
                          code    => 500
-                         content => (str "500 internal server error: " vs))))
+                         content => (str "500 internal server error: "
+                                         (if (= (len vs) 1)
+                                             (verbose-vm-error
+                                              empty
+                                              (ref (car vs) 2)
+                                              (ref (car vs) 3)
+                                              (ref (car vs) 4))
+                                             vs)))))
          (string->symbol (str "try-" (time-ns))))))
 
     (define (fastcgi-bind port f . logger)
