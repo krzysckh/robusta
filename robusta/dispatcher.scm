@@ -47,8 +47,10 @@ creating dispatchers
                       (h1 "index of " ,ipath)
                       ,(append '(ul) (map (λ (e) `(li ((a (href . ,(str ipath "/" e))) ,e))) (dir->list path))))))))
 
+    (define unfuck (string->regex "s/\\.\\.//g"))
+
     (define (rpath-of from base request)
-      (let ((rp (get request 'path 'bug)))
+      (let ((rp (unfuck (get request 'path 'bug))))
         (string-append
          from
          (substring rp (string-length base) (string-length rp)))))
