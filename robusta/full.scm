@@ -24,7 +24,11 @@
    (exports (robusta l10n))
    (exports (robusta log))
    (exports (robusta mime))
-   (exports (robusta server))
+   ;; (exports (robusta server))
+
+   respond
+   response
+   r/bind
 
    b64/encode
    b64/decode
@@ -45,4 +49,5 @@
    )
 
   (begin
+    (define r/bind bind)
     ))

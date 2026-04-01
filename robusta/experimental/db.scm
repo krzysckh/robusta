@@ -182,7 +182,6 @@ this rocks actually
     (define (db)
       (interact 'db (tuple 'get)))
 
-
     (define (db-get table items . id)
       (lets ((p (db)))
         (if (null? id)
