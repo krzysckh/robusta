@@ -13,7 +13,7 @@ doc/robusta.pdf: doc/robusta.md
 doc/robusta.md: $(FEATHER)
 	$(FEATHER) -s -o doc/robusta.md --title "(robusta)" \
 		doc/prelude.md \
-		`find ./robusta -type f -iname '*.scm'` \
+		`find ./robusta -type f -iname '*.scm' | grep -v tsv` \
 		doc/examples.md
 $(FEATHER):
 	wget -O $(FEATHER) https://gitlab.com/owl-lisp/owl/-/raw/master/bin/feather

@@ -79,7 +79,7 @@ https://ecma-international.org/publications-and-standards/standards/ecma-404/
               (b get-single-hex)
               (c get-single-hex)
               (d get-single-hex))
-             (print "got escaped " (list a b c d))
+             ;; (print "got escaped " (list a b c d))
              (utf8-encode (list (bytes->number (list a b c d) 16)))))))
        v))
 
