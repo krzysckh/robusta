@@ -15,6 +15,7 @@
    (prefix (robusta encoding html) html/)
    (prefix (robusta encoding json) json/)
    (prefix (robusta encoding url) url/)
+   (prefix (robusta encoding rss) rss/)
    )
 
   (export
@@ -46,6 +47,8 @@
    url/encode
    url/decode-form
    url/decode
+
+   rss/encode
    )
 
   (begin
